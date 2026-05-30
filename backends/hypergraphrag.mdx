@@ -1,7 +1,7 @@
 ---
-title: "HyperGraphRAG Backend: Hyperedge-Aware Knowledge Graph Retrieval"
+title: "HyperGraphRAG Backend: Hyperedge Graph Retrieval"
 sidebarTitle: "HyperGraphRAG"
-description: "HyperGraphRAG extends standard graph RAG with hyperedges that connect more than two entities, capturing group interactions among multiple medical concepts simultaneously."
+description: "HyperGraphRAG extends pairwise graph RAG with hyperedges that link multiple entities at once, capturing group interactions among medical concepts."
 ---
 
 HyperGraphRAG extends the standard pairwise-edge graph model with hyperedges — edges that connect more than two entities at once. This allows a single relationship to capture group interactions among multiple medical concepts simultaneously (e.g., a clinical syndrome that jointly implicates multiple symptoms, biomarkers, and treatments). Where conventional graph RAG backends model all relationships as binary connections between exactly two nodes, HyperGraphRAG can represent the true many-to-many structure that is common in medicine.

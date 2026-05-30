@@ -1,7 +1,7 @@
 ---
-title: "LangGraph Orchestration: Stateful Subgraphs and Agentic Loops"
+title: "LangGraph Orchestration: Stateful Agentic Subgraphs"
 sidebarTitle: "LangGraph"
-description: "Learn how LangGraph orchestrates the agentic pipeline with stateful subgraphs, conditional loop edges, and fan-out/fan-in patterns for parallel retrieval."
+description: "How LangGraph drives the agentic pipeline with stateful subgraphs, conditional loop edges, and fan-out/fan-in for parallel medical retrieval."
 ---
 
 The agentic pipeline is implemented as a hierarchical LangGraph state machine. LangGraph provides stateful subgraphs, conditional loop edges, and fan-out/fan-in patterns that make multi-hop reasoning both reliable and observable. Rather than a simple linear chain, the pipeline fans out to two independent retrieval subgraphs — the semantic channel and the relational channel — waits for both to complete, then synthesises their outputs into a single, evidence-backed final answer.
@@ -16,23 +16,20 @@ LangGraph was chosen as the orchestration framework for several properties that 
 
 - **Fan-out / fan-in** — The parent graph dispatches both the semantic channel subgraph and the relational channel subgraph in parallel. Execution pauses at the fan-in point until both subgraphs have returned their results, at which point the synthesis node merges them into the final answer.
 
-- **Observable** — LangGraph's graph execution trace records every node entry, state transition, and edge traversal. This makes it straightforward to debug multi-hop chains, inspect intermediate sub-answers, and understand exactly which retrieval hops contributed to the final output.
-
 ## Graph Structure
 
-The pipeline is organised as a three-level hierarchy: a parent graph that owns the top-level question decomposition and synthesis, and two parallel subgraphs — one for each retrieval channel.
+The pipeline is organised as a hierarchy: a parent graph that owns the top-level question decomposition and synthesis, and two parallel subgraphs — one for each retrieval channel.
 
 ### Parent Graph
 
-The parent graph coordinates the full pipeline from user query to final answer:
+The parent graph coordinates the full pipeline from user query to final answer. It fans out to the two parallel subgraphs and synthesises their results:
 
-| Step | Node | Role |
-|---|---|---|
-| 1 | **Query intake** | Accepts the raw user question |
-| 2 | **Decomposition** | Breaks the question into semantic sub-queries (with `#N` back-references) and relational SPO triple queries (with `Entity#N` placeholders) |
-| 3 | **Fan-out** | Dispatches both the semantic channel subgraph and the relational channel subgraph in parallel |
-| 4 | **Fan-in / merge** | Waits for both subgraphs to complete and merges their accumulated sub-answers |
-| 5 | **Synthesis** | Produces the final answer by combining the merged evidence from both channels |
+| Step | Role |
+|---|---|
+| **Decomposition** | Breaks the question into semantic sub-queries (with `#N` back-references) and relational SPO triple queries (with `Entity#N` placeholders) |
+| **Fan-out** | Dispatches both the semantic channel subgraph and the relational channel subgraph in parallel |
+| **Fan-in / merge** | Waits for both subgraphs to complete and merges their accumulated sub-answers |
+| **Synthesis** | Produces the final answer by combining the merged evidence from both channels |
 
 ### Semantic Channel Subgraph
 
@@ -57,7 +54,7 @@ The relational channel handles structured knowledge graph retrieval via SPO trip
 |---|---|
 | **SPO triple queries** | Issues the decomposed SPO triple queries (with `Entity#N` placeholders resolved) to the knowledge graph |
 | **KG filter** | Filters the returned triplets for relevance to the current sub-query |
-| **Triplet summaries** | Summarises the filtered triplets into a structured relational context |
+| **Triplet list summaries** | Summarises the filtered triplets into a structured relational context |
 | **Sub-answer** | Generates a candidate sub-answer grounded in the triplet summaries |
 
 ## Conditional Loop Edges

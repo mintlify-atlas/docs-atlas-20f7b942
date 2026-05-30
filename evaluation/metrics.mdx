@@ -1,7 +1,7 @@
 ---
-title: "DeepEval Metrics for Graph RAG Evaluation"
+title: "DeepEval Metrics for Agentic Graph RAG Medical Evaluation"
 sidebarTitle: "Metrics"
-description: "Five DeepEval metrics — Contextual Recall, Contextual Precision, Contextual Relevancy, Answer Relevancy, and Faithfulness — used to evaluate agentic Graph RAG pipelines."
+description: "Five DeepEval metrics — Contextual Recall, Precision, Relevancy, Answer Relevancy, Faithfulness — applied to agentic Graph RAG pipelines on medical QA."
 ---
 
 Evaluation uses five metrics from the [DeepEval](https://deepeval.com/) framework. Together they measure whether the system retrieves the right context, uses it correctly, and ultimately produces faithful, on-topic answers. This combination is especially important in medical settings, where both missing evidence and hallucinated claims can have real consequences.
@@ -46,7 +46,7 @@ Each metric targets a distinct failure mode — missed context, noisy context, o
 
 Each metric is computed for both the agentic pipeline and its corresponding non-agentic baseline — the same Graph RAG backend queried directly, without the multi-hop reasoning loop. This paired design means every metric produces a delta value:
 
-```
+```text
 Δ metric = agentic_score − baseline_score
 ```
 

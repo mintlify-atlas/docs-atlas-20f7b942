@@ -1,10 +1,10 @@
 ---
 title: "Dual Retrieval Channels: Semantic and Relational Pipelines"
 sidebarTitle: "Retrieval Channels"
-description: "Understand how the semantic and relational retrieval channels work in parallel, what each channel retrieves, and how their outputs are merged into a final answer."
+description: "How the parallel semantic and relational retrieval channels process backend context, and how their sub-answers are merged into a grounded final answer."
 ---
 
-The system runs two retrieval channels concurrently — a **semantic channel** that operates over dense vector embeddings of document text, and a **relational channel** that traverses entity/relationship triples in the Neo4j knowledge graph. Both channels receive their inputs from the same initial backend retrieval call, but process fundamentally different evidence modalities in parallel. Once both channels have produced their sub-answers, the parent LangGraph state machine merges their outputs and synthesises a single, grounded final answer. Running the two channels in parallel rather than in sequence minimises latency and ensures that the synthesis step always has access to both text-based and graph-triple evidence before generating a response.
+The system runs two retrieval channels concurrently — a **semantic channel** that operates over dense vector embeddings of document text, and a **relational channel** that processes entity/relationship triples from the knowledge graph built by the active backend. Both channels receive their inputs from the same initial backend retrieval call, but process fundamentally different evidence modalities in parallel. Once both channels have produced their sub-answers, the parent LangGraph state machine merges their outputs and synthesises a single, grounded final answer. Running the two channels in parallel rather than in sequence minimises latency and ensures that the synthesis step always has access to both text-based and graph-triple evidence before generating a response.
 
 ## Semantic Channel
 
@@ -51,10 +51,10 @@ The semantic channel is responsible for retrieving and reasoning over **text-bas
 
 ## Relational Channel
 
-The relational channel is responsible for retrieving and reasoning over **structured entity/relationship triples** from the Neo4j knowledge graph. Rather than surfacing text passages, it traverses typed edges between entity nodes and returns explicit Subject–Predicate–Object triples as evidence.
+The relational channel is responsible for retrieving and reasoning over **structured entity/relationship triples** from the knowledge graph built by the active backend. Rather than surfacing text passages, it processes typed entity/relationship data and returns explicit Subject–Predicate–Object triples as evidence.
 
 **What it retrieves:**
-- Entity nodes and their attributes from the Neo4j knowledge graph
+- Entity nodes and their attributes from the backend's knowledge graph storage
 - Typed relationship edges connecting query-relevant entities
 - For PathRAG: both high-level (thematic/concept) and low-level (mention-level) entity/relationship layers
 
@@ -62,10 +62,10 @@ The relational channel is responsible for retrieving and reasoning over **struct
 
 <Steps>
   <Step title="SPO Triple Queries">
-    Each relational sub-query is expressed as a Subject–Predicate–Object triple query, with `Entity#N` placeholders resolved from earlier hops. These structured queries are issued to the Neo4j knowledge graph.
+    Each relational sub-query is expressed as a Subject–Predicate–Object triple query, with `Entity#N` placeholders resolved from earlier hops. These structured queries are issued to the Graph RAG backend, which retrieves the relevant triples from its knowledge graph storage (Neo4j for LightRAG; local working-directory storage for MiniRAG, PathRAG, and HyperGraphRAG).
   </Step>
   <Step title="KG Filter">
-    The triples returned by Neo4j are filtered to retain only those most relevant to the current sub-query, removing spurious or low-confidence relationships.
+    The triples returned by the backend are filtered to retain only those most relevant to the current sub-query, removing spurious or low-confidence relationships.
   </Step>
   <Step title="Triplet List Summaries">
     The filtered triples are summarised into a structured list that captures the key entities and relationships in a form consumable by the language model.

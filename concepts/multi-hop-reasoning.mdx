@@ -1,7 +1,7 @@
 ---
 title: "Multi-Hop Reasoning: Iterative Sub-Query Decomposition"
 sidebarTitle: "Multi-Hop Reasoning"
-description: "Explore how the agentic pipeline decomposes clinical questions into sub-queries with back-references, enabling multi-step reasoning across the knowledge graph."
+description: "See how the agentic pipeline uses back-referenced sub-queries to perform iterative multi-hop reasoning across semantic and relational evidence."
 ---
 
 Complex clinical questions cannot be answered in a single retrieval pass. A question like "which treatment is contraindicated for a patient presenting with a given condition and a specific comorbidity?" requires chaining together at least three distinct pieces of knowledge: what the condition implies, what the comorbidity implies, and how the intersection of those two implications constrains the treatment options. Answering it correctly means issuing multiple, dependent retrieval queries — each informed by the results of the previous one — rather than a single broad lookup. This is the problem that multi-hop reasoning solves: breaking a complex question into a sequence of focused sub-queries, resolving each one in turn, and chaining the results together to arrive at a grounded final answer.
@@ -11,7 +11,7 @@ Complex clinical questions cannot be answered in a single retrieval pass. A ques
 At the start of each reasoning cycle the system decomposes the incoming clinical question into two parallel sets of sub-queries — one for the semantic channel and one for the relational channel:
 
 - **Semantic sub-queries** — A sequence of focused natural-language questions, each targeting a specific aspect of the original query. Sub-queries may include `#N` back-reference markers (e.g., `#1`, `#2`) that explicitly reference the answer produced by an earlier hop. This allows later sub-queries to be conditioned on what has already been established, rather than asking each question in isolation.
-- **Relational SPO triple queries** — A parallel sequence of Subject–Predicate–Object queries issued to the Neo4j knowledge graph. These queries may include `Entity#N` placeholders that reference specific entities resolved during earlier hops, enabling the graph traversal to follow chains of relationships across multiple steps.
+- **Relational SPO triple queries** — A parallel sequence of Subject–Predicate–Object queries issued to the Graph RAG backend's knowledge graph. These queries may include `Entity#N` placeholders that reference specific entities resolved during earlier hops, enabling the graph traversal to follow chains of relationships across multiple steps.
 
 Both sets of sub-queries are generated upfront from the decomposition step and then executed iteratively by their respective channel subgraphs.
 
@@ -20,7 +20,7 @@ Both sets of sub-queries are generated upfront from the decomposition step and t
 Back-references are the mechanism that makes multi-hop reasoning possible. Without them, each sub-query would be answered independently, with no way for a later question to build on an earlier answer.
 
 - **`#N` placeholders** appear in semantic sub-queries. When the pipeline resolves sub-query `#2`, for example, it substitutes the answer generated for sub-query `#1` wherever `#1` appears in the query text. This grounds the later question in the specific facts already established, rather than re-issuing a generic query.
-- **`Entity#N` placeholders** appear in relational SPO triple queries. When the pipeline processes a triple query that references `Entity#1`, it substitutes the entity name resolved during the first hop's graph traversal, enabling the Neo4j traversal to follow a connected path rather than starting from scratch.
+- **`Entity#N` placeholders** appear in relational SPO triple queries. When the pipeline processes a triple query that references `Entity#1`, it substitutes the entity name resolved during the first hop's graph traversal, enabling the knowledge graph traversal to follow a connected path rather than starting from scratch.
 
 Together, these two placeholder systems allow the pipeline to construct a chain of evidence across the knowledge graph — each hop narrowing the question based on what the previous hop found.
 
@@ -46,6 +46,10 @@ A **conditional edge** in each LangGraph channel subgraph governs whether the re
 This mechanism ensures that the pipeline does not commit to a weakly-supported answer simply because it has exhausted its pre-planned sub-queries. It can adaptively gather more evidence when the situation requires it.
 
 ## Example Flow
+
+<Note>
+  The following is an illustrative example intended to show how back-references and multi-hop retrieval work in practice. It is not a real system trace.
+</Note>
 
 Consider the clinical question: **"What treatment options are contraindicated for a patient with Type 2 Diabetes who also has Chronic Kidney Disease?"**
 

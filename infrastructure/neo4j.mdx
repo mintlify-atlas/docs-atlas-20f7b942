@@ -1,7 +1,7 @@
 ---
 title: "Neo4j: Knowledge Graph Storage for Medical Entities"
 sidebarTitle: "Neo4j"
-description: "Neo4j stores the entity and relationship knowledge graph extracted from medical documents, powering the relational retrieval channel in the agentic pipeline."
+description: "Neo4j stores the entity and relationship knowledge graph from medical documents, powering the relational retrieval channel in the agentic pipeline."
 ---
 
 Neo4j is the graph database that stores the entity and relationship knowledge graph built from medical documents. It powers the relational channel of the agentic pipeline, enabling SPO (Subject–Predicate–Object) triple-based retrieval over structured clinical knowledge. By persisting named entities and their pairwise connections, Neo4j gives the system a dedicated store for structured medical reasoning — separate from, but complementary to, the dense vector index used by the semantic channel.
@@ -12,7 +12,7 @@ The agentic pipeline interacts with Neo4j at two distinct stages of the data lif
 
 **During indexing**, an LLM processes each document chunk and extracts named entities alongside their pairwise relationships. Those entities and relationships are written directly into Neo4j, building up a structured knowledge graph that grows with every new document ingested.
 
-**During retrieval**, the relational channel issues SPO triple queries against Neo4j. Each triple encodes a (Subject, Predicate, Object) pattern — for example, *(metformin, TREATS, type 2 diabetes)* — which the graph database resolves by traversing stored nodes and edges. The resulting triplets are then summarised and combined with the semantic channel's output before the final answer is synthesised.
+**During retrieval**, the relational channel issues SPO triple queries against Neo4j. Each triple encodes a (Subject, Predicate, Object) pattern that the graph database resolves by traversing stored nodes and edges. The resulting triplets are then summarised and combined with the semantic channel's output before the final answer is synthesised.
 
 <Note>
   Only **LightRAG** uses Neo4j as its graph storage backend. MiniRAG, PathRAG, and HyperGraphRAG store their entity and relationship graphs locally in the working directory and do not require a running Neo4j instance.
@@ -24,7 +24,7 @@ The quickest way to get Neo4j running locally is with Docker.
 
 <Steps>
   <Step title="Start the Neo4j container">
-    Run the following command to pull and start a Neo4j instance with default authentication:
+    Run the following command to pull and start a Neo4j instance with default authentication. The standard Neo4j Docker ports are 7474 (HTTP browser) and 7687 (Bolt protocol):
 
     ```bash
     docker run --name neo4j \
@@ -57,7 +57,7 @@ The quickest way to get Neo4j running locally is with Docker.
 
 ## Configuration
 
-The pipeline connects to Neo4j using the following environment variables. Set these in your shell or in a `.env` file — never hardcode credentials in source code or commit them to version control. Use a secrets manager in production environments.
+The pipeline connects to Neo4j using environment variables for the Bolt URI, username, and password. The table below shows typical configuration variable names — set these in your shell or in a `.env` file and never hardcode credentials in source code or commit them to version control.
 
 | Variable | Description | Example |
 |---|---|---|
@@ -73,18 +73,9 @@ The pipeline connects to Neo4j using the following environment variables. Set th
 
 The Neo4j graph used by the agentic pipeline follows a straightforward entity–relationship schema derived directly from the LLM extraction step.
 
-**Nodes** represent named entities drawn from medical documents. Examples include:
+**Nodes** represent named entities extracted from medical documents by the LLM during indexing. Each node corresponds to a named medical concept identified in the source text — such as a disease, drug, symptom, or biomarker.
 
-- Diseases (e.g., *type 2 diabetes*, *sepsis*)
-- Drugs and treatments (e.g., *metformin*, *vancomycin*)
-- Symptoms and signs (e.g., *fever*, *tachycardia*)
-- Biomarkers and lab values (e.g., *HbA1c*, *CRP*)
-
-**Relationships** represent pairwise connections between entities — the edges that make the graph navigable. Examples include:
-
-- `TREATS` — a drug treats a disease
-- `CAUSES` — a condition causes a symptom
-- `CONTRAINDICATES` — a drug is contraindicated with another drug or condition
+**Relationships** represent pairwise connections between entities — the edges that make the graph navigable. The LLM extracts these relationships directly from document text, encoding the clinical or biological link between two named entities.
 
 **Vector index** — alongside the graph structure, LightRAG stores dense embeddings in a vector index. These embeddings sit next to the raw document chunks and are used by the semantic retrieval channel during hybrid search, ensuring both structured and unstructured knowledge are accessible from within the same indexing pass.
 

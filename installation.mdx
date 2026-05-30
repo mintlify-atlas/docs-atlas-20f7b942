@@ -1,5 +1,5 @@
 ---
-title: "Install Agentic Graph RAG for Medical Diagnosis"
+title: "Installing Agentic Graph RAG for Medical Diagnosis"
 sidebarTitle: "Installation"
 description: "Install dependencies using uv, configure Neo4j and Milvus storage backends, and verify your environment is ready for medical Graph RAG."
 ---
@@ -21,16 +21,9 @@ Before you begin, confirm that the following are available on your system:
 
 The project uses [uv](https://github.com/astral-sh/uv) for dependency management. Install it with `pip`:
 
-<CodeGroup>
-```bash pip
+```bash
 pip install uv
 ```
-
-```bash uv quickstart (alternative)
-# Install uv directly from the official script (see https://github.com/astral-sh/uv)
-curl -Lsf https://astral.sh/uv/install.sh | sh
-```
-</CodeGroup>
 
 <Note>
   `uv` manages a project-local virtual environment automatically. You do not need to create or activate a `venv` manually — running `uv sync` is sufficient.
@@ -81,7 +74,8 @@ Start a standalone Milvus instance with Docker:
 ```bash
 docker run -d --name milvus-standalone \
   -p 19530:19530 -p 9091:9091 \
-  milvusdb/milvus:latest standalone
+  milvusdb/milvus:latest \
+  milvus run standalone
 ```
 
 | Port | Protocol | Purpose |
@@ -100,7 +94,7 @@ The pipeline reads connection details and credentials from environment variables
 | Name | Description |
 |---|---|
 | `NEO4J_URI` | Bolt URI for the Neo4j instance, e.g. `bolt://localhost:7687` |
-| `NEO4J_USER` | Neo4j username, e.g. `neo4j` |
+| `NEO4J_USERNAME` | Neo4j username, e.g. `neo4j` |
 | `NEO4J_PASSWORD` | Neo4j password, e.g. `password` |
 | `MILVUS_HOST` | Hostname or IP of the Milvus instance, e.g. `localhost` |
 | `MILVUS_PORT` | gRPC port for Milvus, e.g. `19530` |
@@ -110,7 +104,7 @@ You can export them in your shell:
 
 ```bash
 export NEO4J_URI="bolt://localhost:7687"
-export NEO4J_USER="neo4j"
+export NEO4J_USERNAME="neo4j"
 export NEO4J_PASSWORD="password"
 export MILVUS_HOST="localhost"
 export MILVUS_PORT="19530"

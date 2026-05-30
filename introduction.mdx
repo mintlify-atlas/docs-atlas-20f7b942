@@ -1,7 +1,7 @@
 ---
-title: "Agentic Graph RAG for Medical Diagnosis"
+title: "Agentic Graph RAG for Medical Diagnosis — Overview"
 sidebarTitle: "Introduction"
-description: "Learn how Agentic Graph RAG combines semantic and relational retrieval channels to answer complex clinical questions through multi-hop reasoning."
+description: "Discover how Agentic Graph RAG uses dual semantic and relational retrieval channels with LangGraph orchestration to answer complex clinical questions."
 ---
 
 Agentic Graph RAG for Medical Diagnosis is a multi-hop, agentic Retrieval-Augmented Generation system built specifically for clinical question answering. Unlike single-pass retrieval systems that fetch a fixed context window and generate an answer in one shot, this system iteratively decomposes complex clinical questions into sub-queries, retrieves evidence from both a semantic channel and a relational knowledge-graph channel, and synthesizes a final answer only after multiple reasoning hops. It was built because real-world clinical questions — spanning symptoms, biomarkers, treatments, and multi-step differential diagnoses — cannot be reliably answered by simple RAG; they demand traversal across a structured medical knowledge graph.

@@ -1,7 +1,7 @@
 ---
-title: "Medical Evaluation Benchmarks: HealthBench, MedCaseReasoning, and More"
+title: "Medical QA Benchmarks for Agentic Graph RAG Evaluation"
 sidebarTitle: "Benchmarks"
-description: "Detailed overview of the four medical QA benchmarks used to evaluate the agentic Graph RAG pipeline: HealthBench, MedCaseReasoning, MetaMedQA, and PubMedQA."
+description: "Profiles of the four medical QA benchmarks — HealthBench, MedCaseReasoning, MetaMedQA, and PubMedQA — used to evaluate the agentic Graph RAG pipelines."
 ---
 
 The agentic Graph RAG system is evaluated on four medical QA benchmarks that collectively cover a broad range of clinical question types — from multi-turn medical AI interactions to textbook-style USMLE questions and biomedical research QA. Together they stress-test the pipeline across conversational, reasoning-intensive, standardised, and literature-grounded scenarios, giving a comprehensive picture of real-world clinical performance.
@@ -14,7 +14,7 @@ The agentic Graph RAG system is evaluated on four medical QA benchmarks that col
 
 ## MedCaseReasoning
 
-[MedCaseReasoning](https://github.com/kevinwu23/Stanford-MedCaseReasoning) consists of medical case studies paired with detailed reasoning processes. Each example requires not just a correct final answer, but the ability to follow and reproduce the stepwise clinical reasoning a physician would use when working through a case.
+[MedCaseReasoning](https://github.com/kevinwu23/Stanford-MedCaseReasoning) consists of medical case studies with detailed reasoning processes. Each example requires not just a correct final answer, but the ability to follow and reproduce the stepwise clinical reasoning a physician would use when working through a case.
 
 **Why it's relevant:** The agentic pipeline decomposes questions into sub-queries and tracks back-references across hops, mirroring the kind of chained reasoning that clinical case studies demand. MedCaseReasoning directly tests whether this multi-hop structure leads to better-aligned reasoning chains, rather than just improved final answers.
 

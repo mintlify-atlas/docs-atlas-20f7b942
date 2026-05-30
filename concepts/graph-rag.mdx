@@ -20,14 +20,14 @@ A knowledge graph is built from three fundamental primitives:
 - **Relationships** — Directed edges connecting two entities and labelled with the nature of the connection (e.g., `causes`, `treats`, `contraindicates`, `is_a`, `associated_with`). Relationships give the graph its semantic structure.
 - **Triples (Subject–Predicate–Object)** — The atomic unit of knowledge graph data, written as `(Subject, Predicate, Object)`. For example: `(Metformin, contraindicates, Renal Failure)` or `(Chest Pain, symptom_of, Myocardial Infarction)`. Every edge in the graph corresponds to one or more SPO triples.
 
-In this system, entities and relationships extracted from medical documents are stored in **Neo4j**, while dense vector embeddings of document chunks are stored in **Milvus** for semantic retrieval.
+In this system, dense vector embeddings of document chunks are stored in **Milvus** for semantic retrieval. Entities and relationships are stored in a knowledge graph whose backend varies: **Neo4j** is used when LightRAG is active; MiniRAG, PathRAG, and HyperGraphRAG store their graphs in local working-directory files.
 
 ## Retrieval Modes
 
 This system uses two complementary retrieval modes in parallel, rather than choosing one:
 
 - **Semantic (dense vector) retrieval** — Document chunks are embedded into a high-dimensional vector space and stored in Milvus. At query time, the sub-query is embedded and a nearest-neighbour search returns the most semantically similar passages. This mode is good at surfacing relevant text even when the exact terminology differs from the query.
-- **Relational (graph traversal) retrieval** — SPO triple queries are issued to the Neo4j knowledge graph. The graph is traversed from query-relevant entity nodes along typed edges, returning chains of triples that represent explicit, structured relationships. This mode surfaces connections that may not be stated verbatim in any single document.
+- **Relational (graph traversal) retrieval** — SPO triple queries are issued to the Graph RAG backend's knowledge graph. The graph is traversed from query-relevant entity nodes along typed edges, returning chains of triples that represent explicit, structured relationships. This mode surfaces connections that may not be stated verbatim in any single document.
 
 Running both modes in parallel and synthesizing their outputs allows the system to answer questions that require both broad semantic coverage and precise relational grounding.
 
@@ -37,10 +37,10 @@ Four Graph RAG backends are supported, each with a different graph model and ret
 
 | Backend | Graph Model | Retrieval Mode |
 |---|---|---|
-| [LightRAG](https://arxiv.org/abs/2410.05779) | Dual-level knowledge graph (local fine-grained entity graph + global concept cluster graph) | Hybrid (keyword KG traversal + dense vector search) |
-| [MiniRAG](https://arxiv.org/abs/2501.06713) | Flat graph (lightweight, resource-efficient construction) | Light (immediate neighbourhood of query entity) |
-| [PathRAG](https://arxiv.org/abs/2502.14902) | Two-tier hierarchy (high-level thematic layer + low-level mention layer) | Hybrid (path traversal between query-relevant entities) |
-| [HyperGraphRAG](https://arxiv.org/abs/2503.21322) | Hyperedge graph (edges connecting more than two entities simultaneously) | Hybrid (dense vector search + hypergraph traversal) |
+| [LightRAG](/backends/lightrag) | Dual-level knowledge graph (local fine-grained entity graph + global concept cluster graph) | Hybrid (keyword KG traversal + dense vector search) |
+| [MiniRAG](/backends/minirag) | Flat graph (lightweight, resource-efficient construction) | Light (immediate neighbourhood of query entity) |
+| [PathRAG](/backends/pathrag) | Two-tier hierarchy (high-level thematic layer + low-level mention layer) | Hybrid (path traversal between query-relevant entities) |
+| [HyperGraphRAG](/backends/hypergraphrag) | Hyperedge graph (edges connecting more than two entities simultaneously) | Hybrid (dense vector search + hypergraph traversal) |
 
 Each backend surfaces its context in a different format (JSON or CSV), and the `context_filter` function routes each section to the appropriate retrieval channel. See the [Retrieval Channels](/concepts/retrieval-channels) page for details on how each backend's output is split.
 

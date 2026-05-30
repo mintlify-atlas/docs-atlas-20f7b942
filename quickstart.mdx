@@ -1,7 +1,7 @@
 ---
 title: "Get Started with Agentic Graph RAG for Medical Diagnosis"
 sidebarTitle: "Quickstart"
-description: "Set up the environment, configure your Graph RAG backend, and run your first multi-hop medical query in under ten minutes."
+description: "Set up Neo4j and Milvus, install Python dependencies with uv, choose a Graph RAG backend, and run your first multi-hop medical query in minutes."
 ---
 
 This guide walks you through everything needed to get the Agentic Graph RAG pipeline running locally. By the end you will have cloned the repository, installed all Python dependencies with `uv`, started Neo4j and Milvus in Docker, selected a Graph RAG backend, and executed your first multi-hop clinical query. The whole process takes under ten minutes on a machine with Docker already installed.
@@ -66,7 +66,8 @@ This guide walks you through everything needed to get the Agentic Graph RAG pipe
     ```bash
     docker run -d --name milvus-standalone \
       -p 19530:19530 -p 9091:9091 \
-      milvusdb/milvus:latest standalone
+      milvusdb/milvus:latest \
+      milvus run standalone
     ```
 
     The Milvus gRPC endpoint used by the pipeline listens on port `19530`.
@@ -98,7 +99,7 @@ This guide walks you through everything needed to get the Agentic Graph RAG pipe
     pipeline = AgenticMedDiagPipeline(
         backend="lightrag",       # one of: lightrag, minirag, pathrag, hypergraphrag
         neo4j_uri="bolt://localhost:7687",
-        neo4j_user="neo4j",
+        neo4j_username="neo4j",
         neo4j_password="password",
         milvus_host="localhost",
         milvus_port=19530,

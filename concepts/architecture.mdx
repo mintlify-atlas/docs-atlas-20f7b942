@@ -49,14 +49,14 @@ The semantic channel retrieves and reasons over text-based evidence — document
 
 ## Relational Channel Subgraph
 
-The relational channel retrieves and reasons over structured entity/relationship triples from the Neo4j knowledge graph. Its pipeline is more direct than the semantic channel, focusing on graph traversal rather than text summarisation:
+The relational channel retrieves and reasons over structured entity/relationship triples from the knowledge graph built by the active backend. Its pipeline is more direct than the semantic channel, focusing on graph traversal rather than text summarisation:
 
 <Steps>
   <Step title="SPO Triple Queries">
-    The clinical question is decomposed into Subject–Predicate–Object triple queries, with `Entity#N` placeholders that can reference entities resolved in earlier hops. These structured queries are issued to the Neo4j knowledge graph.
+    The clinical question is decomposed into Subject–Predicate–Object triple queries, with `Entity#N` placeholders that can reference entities resolved in earlier hops. These structured queries are issued to the Graph RAG backend, which retrieves the relevant triples from whichever knowledge graph storage it uses (Neo4j for LightRAG; local working-directory storage for MiniRAG, PathRAG, and HyperGraphRAG).
   </Step>
   <Step title="KG Filter">
-    The triples returned by Neo4j are filtered to retain only those most relevant to the current sub-query, removing spurious or low-confidence relationships.
+    The triples returned by the backend are filtered to retain only those most relevant to the current sub-query, removing spurious or low-confidence relationships.
   </Step>
   <Step title="Triplet List Summaries">
     The filtered triples are summarised into a structured list that captures the key entities and relationships needed to answer the sub-query, making the relational evidence consumable by the language model.
