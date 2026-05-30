@@ -1,0 +1,65 @@
+---
+title: "DeepEval Metrics for Graph RAG Evaluation"
+sidebarTitle: "Metrics"
+description: "Five DeepEval metrics — Contextual Recall, Contextual Precision, Contextual Relevancy, Answer Relevancy, and Faithfulness — used to evaluate agentic Graph RAG pipelines."
+---
+
+Evaluation uses five metrics from the [DeepEval](https://deepeval.com/) framework. Together they measure whether the system retrieves the right context, uses it correctly, and ultimately produces faithful, on-topic answers. This combination is especially important in medical settings, where both missing evidence and hallucinated claims can have real consequences.
+
+## Metrics
+
+Each metric targets a distinct failure mode — missed context, noisy context, off-topic context, irrelevant answers, and unsupported claims — so that the full set captures the end-to-end quality of an agentic Graph RAG pipeline.
+
+<AccordionGroup>
+  <Accordion title="Contextual Recall">
+    **What it measures:** The fraction of relevant context that was actually retrieved from the knowledge sources. A low Contextual Recall score means the pipeline failed to surface evidence that was present in the knowledge graph or document store.
+
+    **Why it matters for medical QA:** Clinical questions often hinge on a specific piece of evidence — a diagnostic criterion, a contraindication, a dosage threshold. Missing that evidence, even if the rest of the retrieved context is correct, can lead to an incomplete or dangerous answer. Contextual Recall ensures that the agentic multi-hop loop is not prematurely terminating before all relevant evidence has been gathered.
+  </Accordion>
+
+  <Accordion title="Contextual Precision">
+    **What it measures:** The fraction of retrieved context that is actually relevant to the question. A low Contextual Precision score means the pipeline is returning a large amount of noisy or tangentially related material alongside the genuinely useful evidence.
+
+    **Why it matters for medical QA:** Excess irrelevant context can distract the answer-generation step, leading to unfocused or diluted responses. In clinical settings, precision is especially important because mixing in unrelated medical concepts can cause the model to conflate conditions, treatments, or patient populations.
+  </Accordion>
+
+  <Accordion title="Contextual Relevancy">
+    **What it measures:** The overall relevance of the retrieved context to the question as a whole. While Contextual Precision evaluates individual retrieved items, Contextual Relevancy captures whether the retrieved set is collectively on-topic and appropriate for answering the query.
+
+    **Why it matters for medical QA:** A pipeline may retrieve many individually relevant snippets while still missing the overall clinical framing of the question. Contextual Relevancy ensures the pipeline stays oriented toward the actual question being asked, rather than drifting toward related-but-distinct medical topics during iterative retrieval.
+  </Accordion>
+
+  <Accordion title="Answer Relevancy">
+    **What it measures:** How relevant the final generated answer is to the original question. A low Answer Relevancy score indicates that the model has produced a response that does not directly address what was asked — even if that response is internally coherent or factually accurate in isolation.
+
+    **Why it matters for medical QA:** Medical questions are often precise and require equally precise answers. A response that discusses a related condition, treatment, or concept without directly answering the query fails the clinician or patient regardless of its factual content. Answer Relevancy catches hallucinated tangents and off-topic responses before they reach end users.
+  </Accordion>
+
+  <Accordion title="Faithfulness">
+    **What it measures:** Whether the final answer is grounded in the retrieved context and does not introduce claims that are unsupported by the retrieved evidence. A low Faithfulness score means the model has generated statements that go beyond — or contradict — what was actually retrieved.
+
+    **Why it matters for medical QA:** Hallucination is the most dangerous failure mode in medical AI. An answer that invents drug interactions, misattributes symptoms, or fabricates study results could directly harm a patient. Faithfulness is therefore the most critical single metric in this evaluation suite, and it is the primary target of the agentic pipeline's evidence-verification sub-step.
+  </Accordion>
+</AccordionGroup>
+
+## Baseline Comparison
+
+Each metric is computed for both the agentic pipeline and its corresponding non-agentic baseline — the same Graph RAG backend queried directly, without the multi-hop reasoning loop. This paired design means every metric produces a delta value:
+
+```
+Δ metric = agentic_score − baseline_score
+```
+
+A positive delta indicates that the agentic layer improved performance on that dimension. Because the backend is held constant across the pair, any improvement can be attributed specifically to the agentic reasoning loop rather than to the choice of Graph RAG backend.
+
+<Tip>
+  The five metrics are complementary. A pipeline that scores well on Contextual Recall but poorly on Faithfulness is retrieving the right evidence but then fabricating claims on top of it. Both dimensions must improve for the agentic layer to be considered genuinely beneficial in a medical setting.
+</Tip>
+
+## DeepEval
+
+[DeepEval](https://deepeval.com/) is an open-source evaluation framework for LLM applications. It provides a standardised suite of metrics — including the five used here — that can be applied consistently across different pipelines, backends, and datasets. Using DeepEval ensures that all four agentic pipelines and all four baselines are scored with identical methodology, making the resulting deltas directly comparable.
+
+<Note>
+  No benchmark scores have been published yet. Evaluation results will accompany the code release.
+</Note>

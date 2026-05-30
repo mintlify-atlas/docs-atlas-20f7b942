@@ -1,0 +1,71 @@
+---
+title: "Evaluation Overview: Comparing Agentic Graph RAG Pipelines"
+sidebarTitle: "Overview"
+description: "Learn how the agentic Graph RAG pipelines are evaluated against LightRAG, MiniRAG, PathRAG, and HyperGraphRAG baselines using DeepEval metrics on medical benchmarks."
+---
+
+All four agentic pipelines — LightRAG-backed, MiniRAG-backed, PathRAG-backed, and HyperGraphRAG-backed — are evaluated against their corresponding non-agentic baselines using [DeepEval](https://deepeval.com/). This design enables a direct measurement of the value added by the agentic multi-hop reasoning layer on top of each Graph RAG backend.
+
+## Evaluation Strategy
+
+Each agentic pipeline wraps a Graph RAG backend with an iterative multi-hop reasoning loop: sub-query decomposition, parallel semantic and relational retrieval, evidence verification, and conditional expansion. Evaluation isolates the contribution of this loop by pairing every agentic variant with its raw backend as a baseline.
+
+<Steps>
+  <Step title="Select a Graph RAG backend">
+    Choose one of four supported backends — LightRAG, MiniRAG, PathRAG, or HyperGraphRAG — to act as the retrieval engine.
+  </Step>
+  <Step title="Run the agentic pipeline">
+    Wrap the backend with the full agentic multi-hop reasoning loop and generate answers across all four medical benchmarks.
+  </Step>
+  <Step title="Run the baseline">
+    Query the same backend directly, without the agentic loop, to produce baseline answers for the same benchmark questions.
+  </Step>
+  <Step title="Score with DeepEval">
+    Apply all five DeepEval metrics to both sets of answers, then compute the delta between the agentic pipeline and its baseline.
+  </Step>
+</Steps>
+
+The goal is to quantify precisely how much the agentic multi-hop layer improves retrieval quality and answer faithfulness relative to each raw Graph RAG backend — without conflating the effect of the backend architecture with the effect of the reasoning loop.
+
+## What Is Evaluated
+
+Each agentic pipeline is paired with its direct non-agentic counterpart as a baseline. This four-way comparison keeps the retrieval backend constant while varying only the presence of the agentic reasoning loop.
+
+| Pipeline | Baseline |
+|---|---|
+| Agentic LightRAG pipeline | LightRAG baseline |
+| Agentic MiniRAG pipeline | MiniRAG baseline |
+| Agentic PathRAG pipeline | PathRAG baseline |
+| Agentic HyperGraphRAG pipeline | HyperGraphRAG baseline |
+
+## Datasets
+
+Evaluation runs across four medical QA benchmarks that collectively cover multi-turn clinical dialogue, step-by-step case reasoning, standardised USMLE-style questions, and biomedical literature retrieval.
+
+| Dataset | Description |
+|---|---|
+| [HealthBench](https://openai.com/index/healthbench/) | Multi-turn medical AI benchmark with expert rubric evaluations |
+| [MedCaseReasoning](https://github.com/kevinwu23/Stanford-MedCaseReasoning) | Medical case studies with detailed reasoning processes |
+| [MetaMedQA](https://github.com/maximegmd/MetaMedQA-benchmark) | Medical QA based on USMLE textbook content |
+| [PubMedQA](https://pubmedqa.github.io/) | Biomedical QA based on PubMed articles |
+
+See the [Benchmarks](evaluation/benchmarks) page for a detailed description of each dataset and why it was chosen.
+
+## Metrics
+
+Five metrics from the [DeepEval](https://deepeval.com/) framework are applied to every pipeline–baseline pair: **Contextual Recall**, **Contextual Precision**, **Contextual Relevancy**, **Answer Relevancy**, and **Faithfulness**. Together they measure whether the system retrieves the right context, uses it correctly, and produces faithful answers — all of which are critical in medical settings.
+
+See the [Metrics](evaluation/metrics) page for a detailed explanation of each metric and why it matters for medical QA.
+
+<CardGroup cols={2}>
+  <Card title="Benchmarks" icon="database" href="evaluation/benchmarks">
+    Detailed profiles of HealthBench, MedCaseReasoning, MetaMedQA, and PubMedQA — including what each benchmark tests and why it complements the others.
+  </Card>
+  <Card title="Metrics" icon="chart-bar" href="evaluation/metrics">
+    Full definitions of all five DeepEval metrics, plus an explanation of how baseline comparison enables direct delta measurement.
+  </Card>
+</CardGroup>
+
+<Note>
+  Evaluation results will be published alongside the code release. No benchmark scores are available yet.
+</Note>

@@ -1,47 +1,127 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with Agentic Graph RAG for Medical Diagnosis"
+sidebarTitle: "Quickstart"
+description: "Set up the environment, configure your Graph RAG backend, and run your first multi-hop medical query in under ten minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+This guide walks you through everything needed to get the Agentic Graph RAG pipeline running locally. By the end you will have cloned the repository, installed all Python dependencies with `uv`, started Neo4j and Milvus in Docker, selected a Graph RAG backend, and executed your first multi-hop clinical query. The whole process takes under ten minutes on a machine with Docker already installed.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+<Note>
+  The codebase is actively being developed and the full implementation will be released soon. The usage snippet in Step 7 is illustrative of the described architecture and will be updated to reflect the final API once the code ships.
+</Note>
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Prerequisites">
+    Make sure the following tools are available on your machine before proceeding:
+
+    | Tool | Purpose | Minimum Version |
+    |---|---|---|
+    | **Python** | Runtime for all pipeline code | 3.10+ |
+    | **uv** | Fast Python package and project manager | latest |
+    | **Docker** | Runs Neo4j and Milvus containers locally | any recent version |
+    | **Git** | Clones the repository | any |
+
+    You will also need access to an LLM API (for example, an OpenAI API key) to power the reasoning steps inside the pipeline.
+  </Step>
+
+  <Step title="Clone the Repository">
+    Clone the project from GitHub and change into its directory:
 
     ```bash
-    npm install your-package
+    git clone https://github.com/avnlp/agentic-med-diag.git
+    cd agentic-med-diag
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+
+  <Step title="Install Dependencies">
+    This project uses [uv](https://github.com/astral-sh/uv) for dependency management. If you do not have `uv` installed yet, install it first, then let it sync the project's locked dependencies:
 
     ```bash
-    your-cli init
+    pip install uv
     ```
+
+    ```bash
+    uv sync
+    ```
+
+    `uv sync` reads the project's lockfile and installs all dependencies into a project-local virtual environment — no manual `venv` creation is required.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+  <Step title="Start Neo4j">
+    Neo4j stores the entity/relationship knowledge graph built from your medical documents. Start a local instance with Docker:
 
     ```bash
-    your-cli start
+    docker run --name neo4j \
+      -p 7474:7474 -p 7687:7687 \
+      -e NEO4J_AUTH=neo4j/password \
+      neo4j:latest
     ```
+
+    Once the container is running, the Neo4j Browser is available at [http://localhost:7474](http://localhost:7474). The Bolt connection used by the pipeline listens on port `7687`.
+  </Step>
+
+  <Step title="Start Milvus">
+    Milvus stores dense vector embeddings for the semantic retrieval channel. Start a standalone Milvus instance with Docker:
+
+    ```bash
+    docker run -d --name milvus-standalone \
+      -p 19530:19530 -p 9091:9091 \
+      milvusdb/milvus:latest standalone
+    ```
+
+    The Milvus gRPC endpoint used by the pipeline listens on port `19530`.
+  </Step>
+
+  <Step title="Choose a Backend">
+    The pipeline supports four Graph RAG backends, each with a different graph construction and retrieval strategy:
+
+    | Backend | Retrieval mode | Best for |
+    |---|---|---|
+    | **LightRAG** | Hybrid (KG traversal + dense vector) | General-purpose, balanced depth and speed |
+    | **MiniRAG** | Light (nearest-neighbourhood only) | Resource-constrained environments |
+    | **PathRAG** | Hybrid (two-tier hierarchy, path-based) | Questions requiring multi-hop chain-of-evidence |
+    | **HyperGraphRAG** | Hybrid (hyperedge traversal + dense vector) | Group interactions among multiple medical concepts |
+
+    For this quickstart, use **LightRAG** — it is the most general-purpose backend and requires no additional configuration beyond what you have already set up.
+  </Step>
+
+  <Step title="Run a Query">
+    Once the code is released, you will be able to run a multi-hop medical query through the pipeline. The following snippet illustrates the intended usage based on the described architecture:
+
+    ```python
+    # Illustrative usage — reflects the described architecture.
+    # The final API will be published with the code release.
+
+    from agentic_med_diag import AgenticMedDiagPipeline
+
+    # Initialise the pipeline with the LightRAG backend
+    pipeline = AgenticMedDiagPipeline(
+        backend="lightrag",       # one of: lightrag, minirag, pathrag, hypergraphrag
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_user="neo4j",
+        neo4j_password="password",
+        milvus_host="localhost",
+        milvus_port=19530,
+    )
+
+    # Submit a complex clinical question
+    question = (
+        "What are the contraindications for metformin in a patient "
+        "with type 2 diabetes, chronic kidney disease stage 3, "
+        "and elevated serum lactate?"
+    )
+
+    result = pipeline.query(question)
+    print(result.answer)
+    ```
+
+    The pipeline will decompose the question into sub-queries, run parallel semantic and relational retrieval hops, and synthesize a final grounded answer.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Next Steps
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+Now that your environment is running, explore the deeper concepts behind the system:
+
+- **[Architecture](/concepts/architecture)** — understand the LangGraph state machine, the fan-out/fan-in pattern, and how the dual retrieval channels are orchestrated.
+- **[Backends Overview](/backends/overview)** — compare LightRAG, MiniRAG, PathRAG, and HyperGraphRAG in detail, including their indexing strategies, retrieval modes, and context-filter logic.

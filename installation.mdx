@@ -1,0 +1,142 @@
+---
+title: "Install Agentic Graph RAG for Medical Diagnosis"
+sidebarTitle: "Installation"
+description: "Install dependencies using uv, configure Neo4j and Milvus storage backends, and verify your environment is ready for medical Graph RAG."
+---
+
+This page covers every step needed to go from a bare machine to a fully configured Agentic Graph RAG environment: installing the Python dependency manager, syncing the project lockfile, spinning up the Neo4j and Milvus storage backends in Docker, and setting the environment variables the pipeline needs to connect everything together.
+
+## Requirements
+
+Before you begin, confirm that the following are available on your system:
+
+| Requirement | Purpose | Notes |
+|---|---|---|
+| **Python 3.10+** | Runtime for all pipeline and evaluation code | Check with `python --version` |
+| **uv** | Fast Python package and project manager | Installed in the next section |
+| **Docker** | Runs Neo4j and Milvus as local containers | Any recent stable release |
+| **LLM API access** | Powers the reasoning steps inside the pipeline | e.g., an OpenAI API key |
+
+## Installing uv
+
+The project uses [uv](https://github.com/astral-sh/uv) for dependency management. Install it with `pip`:
+
+<CodeGroup>
+```bash pip
+pip install uv
+```
+
+```bash uv quickstart (alternative)
+# Install uv directly from the official script (see https://github.com/astral-sh/uv)
+curl -Lsf https://astral.sh/uv/install.sh | sh
+```
+</CodeGroup>
+
+<Note>
+  `uv` manages a project-local virtual environment automatically. You do not need to create or activate a `venv` manually — running `uv sync` is sufficient.
+</Note>
+
+## Installing Project Dependencies
+
+Clone the repository and let `uv` install all locked dependencies in one step:
+
+```bash
+git clone https://github.com/avnlp/agentic-med-diag.git
+cd agentic-med-diag
+uv sync
+```
+
+`uv sync` reads the project lockfile and installs all dependencies into a `.venv` directory inside the project root. Subsequent `uv run` calls automatically use that environment.
+
+## Neo4j Setup
+
+Neo4j stores the entity/relationship knowledge graph built from ingested medical documents. The relational retrieval channel queries Neo4j to fetch structured KG triples and multi-hop paths during inference.
+
+Start a local Neo4j instance with Docker:
+
+```bash
+docker run --name neo4j \
+  -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/password \
+  neo4j:latest
+```
+
+| Port | Protocol | Purpose |
+|---|---|---|
+| `7474` | HTTP | Neo4j Browser UI |
+| `7687` | Bolt | Driver connection used by the pipeline |
+
+Once the container is running, open the Neo4j Browser at [http://localhost:7474](http://localhost:7474) to verify the database is up and accepting connections. Log in with the credentials `neo4j` / `password` (as set by `NEO4J_AUTH` above).
+
+<Tip>
+  For production or persistent development use, mount a volume (`-v $PWD/neo4j-data:/data`) so graph data survives container restarts.
+</Tip>
+
+## Milvus Setup
+
+Milvus stores dense vector embeddings for semantic retrieval over document chunks. The semantic retrieval channel performs hybrid search over Milvus to ground sub-queries in text evidence during each reasoning hop.
+
+Start a standalone Milvus instance with Docker:
+
+```bash
+docker run -d --name milvus-standalone \
+  -p 19530:19530 -p 9091:9091 \
+  milvusdb/milvus:latest standalone
+```
+
+| Port | Protocol | Purpose |
+|---|---|---|
+| `19530` | gRPC | Primary connection used by the pipeline |
+| `9091` | HTTP | Metrics and health endpoint |
+
+<Tip>
+  For persistent development, mount a volume (`-v $PWD/milvus-data:/var/lib/milvus`) to retain indexed embeddings across restarts.
+</Tip>
+
+## Environment Variables
+
+The pipeline reads connection details and credentials from environment variables. Set these before running any pipeline code:
+
+| Name | Description |
+|---|---|
+| `NEO4J_URI` | Bolt URI for the Neo4j instance, e.g. `bolt://localhost:7687` |
+| `NEO4J_USER` | Neo4j username, e.g. `neo4j` |
+| `NEO4J_PASSWORD` | Neo4j password, e.g. `password` |
+| `MILVUS_HOST` | Hostname or IP of the Milvus instance, e.g. `localhost` |
+| `MILVUS_PORT` | gRPC port for Milvus, e.g. `19530` |
+| `OPENAI_API_KEY` | API key for your LLM provider (OpenAI or compatible) |
+
+You can export them in your shell:
+
+```bash
+export NEO4J_URI="bolt://localhost:7687"
+export NEO4J_USER="neo4j"
+export NEO4J_PASSWORD="password"
+export MILVUS_HOST="localhost"
+export MILVUS_PORT="19530"
+export OPENAI_API_KEY="sk-..."
+```
+
+Or place them in a `.env` file at the project root — `uv run` will pick them up automatically.
+
+## Verifying the Installation
+
+After completing the steps above, confirm that both services are healthy:
+
+```bash
+# Check Neo4j is reachable on the Bolt port
+nc -zv localhost 7687
+
+# Check Milvus health endpoint
+curl http://localhost:9091/healthz
+```
+
+A successful response from the Milvus health endpoint returns `OK`. For Neo4j, open [http://localhost:7474](http://localhost:7474) in a browser and confirm you can log in.
+
+<Note>
+  The codebase is actively being developed and the full pipeline code will be released soon. Once released, you can verify the Python installation by importing the top-level package after running `uv sync`.
+</Note>
+
+<Warning>
+  Do not expose the Neo4j or Milvus ports publicly without additional authentication and network controls. The Docker commands above are intended for local development only.
+</Warning>

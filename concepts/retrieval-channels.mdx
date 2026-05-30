@@ -1,0 +1,113 @@
+---
+title: "Dual Retrieval Channels: Semantic and Relational Pipelines"
+sidebarTitle: "Retrieval Channels"
+description: "Understand how the semantic and relational retrieval channels work in parallel, what each channel retrieves, and how their outputs are merged into a final answer."
+---
+
+The system runs two retrieval channels concurrently — a **semantic channel** that operates over dense vector embeddings of document text, and a **relational channel** that traverses entity/relationship triples in the Neo4j knowledge graph. Both channels receive their inputs from the same initial backend retrieval call, but process fundamentally different evidence modalities in parallel. Once both channels have produced their sub-answers, the parent LangGraph state machine merges their outputs and synthesises a single, grounded final answer. Running the two channels in parallel rather than in sequence minimises latency and ensures that the synthesis step always has access to both text-based and graph-triple evidence before generating a response.
+
+## Semantic Channel
+
+The semantic channel is responsible for retrieving and reasoning over **text-based evidence** — document chunks and reference lists surfaced by the Graph RAG backend's dense vector search over Milvus embeddings.
+
+**What it retrieves:**
+- Relevant document passages indexed in Milvus and returned by the backend's vector search
+- Reference document lists that identify the source documents for the retrieved chunks
+
+**Pipeline:**
+
+<Steps>
+  <Step title="Sub-Query Grounding">
+    Each semantic sub-query (with any `#N` back-references resolved from earlier hops) is grounded and prepared for issuance to the retrieval backend.
+  </Step>
+  <Step title="GraphRAG Retrieval">
+    The grounded sub-query is issued to the active Graph RAG backend, which performs dense vector search over Milvus embeddings and returns the relevant document chunks and reference list sections from the structured backend context.
+  </Step>
+  <Step title="Semantic Filter">
+    The retrieved document passages are filtered to remove noise and retain only the most relevant content for the current sub-query, reducing the context window burden for downstream steps.
+  </Step>
+  <Step title="Text Summary">
+    The filtered passages are summarised into a compact representation that distills the key clinical evidence.
+  </Step>
+  <Step title="Sub-Answer Generation">
+    The language model generates a sub-answer for the current hop, drawing on the text summary. This sub-answer is stored as a `#N` back-reference for subsequent sub-queries.
+  </Step>
+  <Step title="Logic Drafting">
+    The reasoning chain connecting the retrieved text evidence to the sub-answer is made explicit, producing a structured draft of the logical steps taken.
+  </Step>
+  <Step title="Evidence Verification">
+    The drafted logic and sub-answer are evaluated for faithfulness and sufficiency against the retrieved evidence. If coverage is insufficient, a signal is emitted to trigger the conditional expansion edge.
+  </Step>
+</Steps>
+
+**Input from `context_filter` by backend:**
+
+| Backend | Semantic Channel Receives |
+|---|---|
+| **LightRAG** | `Document Chunks` + `Reference Document List` |
+| **MiniRAG** | `Sources` CSV |
+| **HyperGraphRAG** | `Sources` CSV |
+| **PathRAG** | `Sources` CSV |
+
+## Relational Channel
+
+The relational channel is responsible for retrieving and reasoning over **structured entity/relationship triples** from the Neo4j knowledge graph. Rather than surfacing text passages, it traverses typed edges between entity nodes and returns explicit Subject–Predicate–Object triples as evidence.
+
+**What it retrieves:**
+- Entity nodes and their attributes from the Neo4j knowledge graph
+- Typed relationship edges connecting query-relevant entities
+- For PathRAG: both high-level (thematic/concept) and low-level (mention-level) entity/relationship layers
+
+**Pipeline:**
+
+<Steps>
+  <Step title="SPO Triple Queries">
+    Each relational sub-query is expressed as a Subject–Predicate–Object triple query, with `Entity#N` placeholders resolved from earlier hops. These structured queries are issued to the Neo4j knowledge graph.
+  </Step>
+  <Step title="KG Filter">
+    The triples returned by Neo4j are filtered to retain only those most relevant to the current sub-query, removing spurious or low-confidence relationships.
+  </Step>
+  <Step title="Triplet List Summaries">
+    The filtered triples are summarised into a structured list that captures the key entities and relationships in a form consumable by the language model.
+  </Step>
+  <Step title="Sub-Answer Generation">
+    The language model generates a sub-answer for this channel using the summarised triplet evidence, producing the relational channel's contribution to the synthesis step.
+  </Step>
+</Steps>
+
+**Input from `context_filter` by backend:**
+
+| Backend | Relational Channel Receives |
+|---|---|
+| **LightRAG** | `Knowledge Graph Data (Entity)` JSON + `Knowledge Graph Data (Relationship)` JSON |
+| **MiniRAG** | `Entities` CSV + `Relationships` CSV |
+| **HyperGraphRAG** | `Entities` CSV + `Relationships` CSV (including hyperedges) |
+| **PathRAG** | High-level entity/relationship CSVs + low-level entity/relationship CSVs |
+
+## context_filter
+
+Before either channel begins processing, the parent graph calls `context_filter` on the raw context returned by the Graph RAG backend. Each backend structures its output differently — LightRAG returns a JSON object with four named sections, while MiniRAG, HyperGraphRAG, and PathRAG return CSV-formatted contexts with varying section layouts. The `context_filter` function knows how to parse each format and route each section to the correct channel.
+
+<Tip>
+  Because `context_filter` encapsulates all format-specific parsing logic, switching between backends at runtime does not require any changes to the channel subgraphs themselves — only the `context_filter` output changes, and each channel simply receives the same logical inputs (text evidence vs. graph triple evidence) regardless of which backend produced them.
+</Tip>
+
+This clean separation ensures that each channel always receives exactly the evidence modality it is designed to process, keeping the semantic and relational pipelines backend-agnostic.
+
+## Synthesis
+
+After both channels have completed their iterative retrieval-and-reasoning loops and produced sub-answers, the parent LangGraph state machine **merges** the two outputs. The synthesis step receives:
+
+- The semantic channel's sub-answers and the text evidence that supports them
+- The relational channel's sub-answers and the knowledge graph triples that support them
+
+The language model uses the combined evidence to generate a single coherent final answer. By grounding the response in both retrieval modalities simultaneously, the synthesis step can resolve ambiguities that either channel alone might miss — confirming a textually implied drug interaction with an explicit SPO triple, or contextualising a graph relationship with a passage that explains its clinical significance.
+
+<CardGroup cols={2}>
+  <Card title="Backends Overview" icon="database" href="/backends/overview">
+    Explore the four supported Graph RAG backends — LightRAG, MiniRAG, PathRAG, and HyperGraphRAG — and their graph models.
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    See how the parent LangGraph state machine coordinates the fan-out, parallel execution, and fan-in of both retrieval channels.
+  </Card>
+</CardGroup>

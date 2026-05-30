@@ -1,0 +1,51 @@
+---
+title: "PathRAG Backend: Hierarchical Two-Tier Path Traversal"
+sidebarTitle: "PathRAG"
+description: "PathRAG organises the knowledge graph into high-level and low-level entity tiers and retrieves reasoning paths between entities rather than isolated nodes or edges."
+---
+
+PathRAG organises the knowledge graph into a two-tier hierarchy — a global layer of abstract, high-level entities and relationships, and a local layer of fine-grained, low-level entities and relationships — and retrieves reasoning paths between entities rather than isolated nodes or edges. This path-based approach returns chains of evidence that mirror the sequential reasoning required in clinical decision-making, making PathRAG particularly well suited to medical question answering.
+
+## Paper & Repository
+
+- **Paper:** [PathRAG: Pruning Graph-based Retrieval Augmented Generation with Relational Paths (arXiv 2502.14902)](https://arxiv.org/abs/2502.14902)
+- **GitHub:** [https://github.com/BUPT-GAMMA/PathRAG](https://github.com/BUPT-GAMMA/PathRAG)
+
+## Indexing
+
+During ingestion PathRAG constructs two distinct entity and relationship layers, giving the knowledge graph an explicit hierarchical structure.
+
+- **High-level layer:** Thematic or concept-level entities and relationships are extracted, capturing abstract groupings such as disease categories, treatment classes, and biological systems.
+- **Low-level layer:** Mention-level, fine-grained entities and relationships are extracted to preserve the specific, granular detail present in the source documents.
+- The hierarchical graph produced by both layers is stored in the **working directory** — no external graph database is required.
+
+## Retrieval (Hybrid Mode)
+
+Instead of returning individual graph nodes or isolated triples, PathRAG traverses the connecting paths between query-relevant entities and returns ordered chains of evidence. This hybrid retrieval mode combines dense vector search with graph path traversal.
+
+The retrieval returns a **CSV-formatted** context with five sections:
+
+| Section | Content |
+|---|---|
+| `high-level entity information` | Abstract, concept-level entities relevant to the query |
+| `high-level relationship information` | Relationships between those high-level entities |
+| `Sources` | Raw document chunks surfaced by dense vector search |
+| `low-level entity information` | Fine-grained, mention-level entities relevant to the query |
+| `low-level relationship information` | Relationships between those low-level entities |
+
+The system's `context_filter` separates this CSV response across the two retrieval channels:
+
+- **Semantic channel** receives the `Sources` CSV
+- **Relational channel** receives all four entity and relationship CSVs — both high-level and low-level
+
+## Why Path Traversal Matters for Medicine
+
+Clinical reasoning is inherently sequential. A clinician rarely jumps directly from a presenting symptom to a final diagnosis; instead, the reasoning follows a chain:
+
+> **symptom → mechanism → disease → treatment → contraindication**
+
+PathRAG's path-based retrieval naturally surfaces these chains of evidence. Rather than returning a bag of loosely related triples, it returns structured reasoning paths that connect the query entity to downstream concepts, giving the language model — and ultimately the clinician — a coherent thread of evidence to reason over.
+
+<Note>
+  PathRAG stores its hierarchical graph locally in the working directory and does **not** require Neo4j. It is a drop-in replacement for LightRAG in any environment where Neo4j is unavailable but chain-of-evidence retrieval is still required.
+</Note>

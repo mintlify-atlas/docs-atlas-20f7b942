@@ -1,0 +1,72 @@
+---
+title: "Multi-Hop Reasoning: Iterative Sub-Query Decomposition"
+sidebarTitle: "Multi-Hop Reasoning"
+description: "Explore how the agentic pipeline decomposes clinical questions into sub-queries with back-references, enabling multi-step reasoning across the knowledge graph."
+---
+
+Complex clinical questions cannot be answered in a single retrieval pass. A question like "which treatment is contraindicated for a patient presenting with a given condition and a specific comorbidity?" requires chaining together at least three distinct pieces of knowledge: what the condition implies, what the comorbidity implies, and how the intersection of those two implications constrains the treatment options. Answering it correctly means issuing multiple, dependent retrieval queries — each informed by the results of the previous one — rather than a single broad lookup. This is the problem that multi-hop reasoning solves: breaking a complex question into a sequence of focused sub-queries, resolving each one in turn, and chaining the results together to arrive at a grounded final answer.
+
+## Sub-Query Decomposition
+
+At the start of each reasoning cycle the system decomposes the incoming clinical question into two parallel sets of sub-queries — one for the semantic channel and one for the relational channel:
+
+- **Semantic sub-queries** — A sequence of focused natural-language questions, each targeting a specific aspect of the original query. Sub-queries may include `#N` back-reference markers (e.g., `#1`, `#2`) that explicitly reference the answer produced by an earlier hop. This allows later sub-queries to be conditioned on what has already been established, rather than asking each question in isolation.
+- **Relational SPO triple queries** — A parallel sequence of Subject–Predicate–Object queries issued to the Neo4j knowledge graph. These queries may include `Entity#N` placeholders that reference specific entities resolved during earlier hops, enabling the graph traversal to follow chains of relationships across multiple steps.
+
+Both sets of sub-queries are generated upfront from the decomposition step and then executed iteratively by their respective channel subgraphs.
+
+## Back-References
+
+Back-references are the mechanism that makes multi-hop reasoning possible. Without them, each sub-query would be answered independently, with no way for a later question to build on an earlier answer.
+
+- **`#N` placeholders** appear in semantic sub-queries. When the pipeline resolves sub-query `#2`, for example, it substitutes the answer generated for sub-query `#1` wherever `#1` appears in the query text. This grounds the later question in the specific facts already established, rather than re-issuing a generic query.
+- **`Entity#N` placeholders** appear in relational SPO triple queries. When the pipeline processes a triple query that references `Entity#1`, it substitutes the entity name resolved during the first hop's graph traversal, enabling the Neo4j traversal to follow a connected path rather than starting from scratch.
+
+Together, these two placeholder systems allow the pipeline to construct a chain of evidence across the knowledge graph — each hop narrowing the question based on what the previous hop found.
+
+## Iterative Retrieval Loop
+
+The pipeline does not execute all sub-queries in a single pass. Instead, both the semantic channel and the relational channel run as **iterative retrieval-and-reasoning loops** inside their respective LangGraph subgraphs:
+
+1. The current sub-query (with any back-references resolved) is issued to the retrieval backend.
+2. The retrieved evidence is filtered, summarised, and used to generate a sub-answer.
+3. The sub-answer is stored and made available as a back-reference for the next sub-query.
+4. The evidence verification step evaluates whether the accumulated evidence is sufficient to move forward.
+5. If verification passes, the loop advances to the next sub-query; if it fails, the conditional expansion edge is triggered.
+
+This loop continues until all sub-queries have been resolved or the conditional expansion step has gathered sufficient additional evidence.
+
+## Conditional Expansion
+
+A **conditional edge** in each LangGraph channel subgraph governs whether the retrieval loop advances or expands. After the evidence verification step evaluates the current sub-answer and its supporting evidence, it emits one of two signals:
+
+- **Sufficient** — The evidence adequately supports the sub-answer. The subgraph advances to the next sub-query or, if all sub-queries are resolved, exits the loop and returns its channel output to the parent graph.
+- **Insufficient** — The evidence is incomplete or the sub-answer is not well-grounded. The conditional edge routes execution back to the retrieval step, triggering an additional hop with a refined or expanded query.
+
+This mechanism ensures that the pipeline does not commit to a weakly-supported answer simply because it has exhausted its pre-planned sub-queries. It can adaptively gather more evidence when the situation requires it.
+
+## Example Flow
+
+Consider the clinical question: **"What treatment options are contraindicated for a patient with Type 2 Diabetes who also has Chronic Kidney Disease?"**
+
+This question requires at least three hops to answer correctly:
+
+**Hop 1 — Establish the treatment landscape for Type 2 Diabetes:**
+- Semantic sub-query `#1`: "What are the standard pharmacological treatments for Type 2 Diabetes?"
+- Relational SPO query: `(Type 2 Diabetes, treated_by, ?)`
+- The semantic channel retrieves document chunks describing first-line and second-line agents (metformin, SGLT2 inhibitors, GLP-1 agonists, etc.). The relational channel returns explicit `treated_by` triples from the knowledge graph. Both channels generate sub-answer `#1`.
+
+**Hop 2 — Establish the renal implications of Chronic Kidney Disease:**
+- Semantic sub-query `#2`: "How does Chronic Kidney Disease affect drug clearance and renal dosing? [referencing `#1`]"
+- Relational SPO query: `(Entity#1, contraindicates, Chronic Kidney Disease)` — where `Entity#1` is substituted with the list of agents identified in Hop 1.
+- The semantic channel retrieves passages on renal dosing thresholds and eGFR-based contraindications. The relational channel traverses `contraindicates` edges for each agent from Hop 1, returning explicit contraindication triples.
+
+**Hop 3 — Synthesise contraindications for the comorbid patient:**
+- Semantic sub-query `#3`: "Which treatments from `#1` are contraindicated specifically when `#2` applies?"
+- The evidence verification step checks that the accumulated evidence from Hops 1 and 2 is sufficient to support a definitive answer. If a key agent is missing from the graph traversal, the conditional expansion edge triggers an additional retrieval hop before proceeding.
+
+Once all hops are resolved, the parent graph synthesises the semantic and relational channel outputs into a final answer that explicitly names the contraindicated agents and cites both the textual passages and the knowledge graph triples as evidence.
+
+<Note>
+  The fan-out/fan-in coordination between the semantic and relational channels, the conditional expansion edge, and the synthesis step are all implemented in the LangGraph state machine described in the [Architecture](/concepts/architecture) page.
+</Note>

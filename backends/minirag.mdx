@@ -1,0 +1,49 @@
+---
+title: "MiniRAG Backend: Lightweight Graph RAG for Constrained Environments"
+sidebarTitle: "MiniRAG"
+description: "MiniRAG is a resource-efficient Graph RAG backend that uses a flat graph and light retrieval mode, optimized for low memory and reduced LLM call overhead."
+---
+
+MiniRAG is a lightweight Graph RAG designed for resource-constrained settings. It uses a simpler flat graph construction process and a `"light"` retrieval mode that prioritises efficiency over exhaustive graph traversal. Where LightRAG builds a dual-level KG backed by Neo4j, MiniRAG keeps everything in the local working directory and limits LLM calls to what is strictly necessary, making it well suited to environments with limited compute, memory, or API quota.
+
+## Paper & Repository
+
+- **Paper:** [MiniRAG: Towards Extremely Simple Retrieval-Augmented Generation (arXiv 2501.06713)](https://arxiv.org/abs/2501.06713)
+- **GitHub:** [https://github.com/HKUDS/MiniRAG](https://github.com/HKUDS/MiniRAG)
+
+## Indexing
+
+MiniRAG follows the same chunking strategy as LightRAG but produces a simpler, flat graph rather than a multi-level hierarchy.
+
+- Documents are chunked using the same parameters as LightRAG: **400 tokens** per chunk with a **50-token overlap**.
+- Named entities and pairwise relationships are extracted from each chunk and stored in a **flat graph** written to the working directory — no external graph database is required.
+- Because the graph is flat and the extraction pipeline is streamlined, MiniRAG incurs **lower memory and LLM-call overhead** than heavier backends.
+
+## Retrieval (Light Mode)
+
+Rather than performing full hybrid traversal across both local and global graph layers, MiniRAG's `"light"` retrieval mode focuses on the most immediately relevant neighbourhood of the query entity. This trades breadth of graph coverage for speed and efficiency.
+
+The retrieval returns a **CSV-formatted** context with three sections:
+
+| Section | Content |
+|---|---|
+| `Entities` | Entities in the relevant graph neighbourhood |
+| `Relationships` | Relationships connecting those entities |
+| `Sources` | Raw document chunks that support the retrieved entities and relationships |
+
+The system's `context_filter` splits this CSV response across the two retrieval channels:
+
+- **Semantic channel** receives the `Sources` CSV
+- **Relational channel** receives the `Entities` + `Relationships` CSVs
+
+## When to Use MiniRAG
+
+MiniRAG is the right choice when one or more of the following apply:
+
+- You are working in a **low-resource environment** with limited memory or restricted LLM API access.
+- You need to **prototype quickly** and do not want to set up an external graph database.
+- You want a **lightweight baseline** to benchmark against the richer PathRAG, HyperGraphRAG, or LightRAG backends.
+
+<Note>
+  MiniRAG does **not** require Neo4j. The flat graph is stored entirely in the local working directory, making this backend the easiest to deploy with no infrastructure dependencies beyond the base language model.
+</Note>

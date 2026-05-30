@@ -1,0 +1,61 @@
+---
+title: "Graph RAG Backends: LightRAG, MiniRAG, PathRAG, HyperGraphRAG"
+sidebarTitle: "Overview"
+description: "Compare the four switchable Graph RAG backends and choose the right one for your medical knowledge graph use case."
+---
+
+The system supports four Graph RAG backends — LightRAG, MiniRAG, PathRAG, and HyperGraphRAG — all switchable at runtime with no code changes required. Each backend uses a different graph construction model, retrieval strategy, and output format, making the choice of backend a meaningful architectural decision for your specific use case.
+
+## Backend Comparison
+
+| Backend | Graph Model | Retrieval Mode | Neo4j Required | Context Format |
+|---|---|---|---|---|
+| **LightRAG** | Dual-level KG (local entity mentions + global concept clusters) | hybrid | Yes | JSON (4 sections) |
+| **MiniRAG** | Flat graph | light | No | CSV (3 sections) |
+| **PathRAG** | Two-tier hierarchy (high-level + low-level) | hybrid | No | CSV (5 sections) |
+| **HyperGraphRAG** | Hyperedge graph | hybrid | No | CSV (3 sections) |
+
+## Choosing a Backend
+
+Different clinical and infrastructure requirements call for different backends. Use the guidance below to make an informed choice.
+
+- **Use LightRAG** when you need the richest knowledge graph traversal and already have (or can run) a Neo4j instance. Its dual-level graph and hybrid retrieval mode give the most comprehensive entity- and concept-level coverage.
+
+- **Use MiniRAG** in resource-constrained settings — such as low-memory environments or rapid prototyping — where you need a working Graph RAG pipeline without Neo4j and with minimal LLM-call overhead.
+
+- **Use PathRAG** when chain-of-evidence reasoning is a priority. Path-based retrieval is particularly well suited to clinical workflows that require following a chain from symptom to mechanism to treatment to contraindication.
+
+- **Use HyperGraphRAG** when your clinical reasoning involves syndromes or multi-factorial conditions where a single relationship implicates several entities simultaneously — for example, a syndrome that jointly involves multiple symptoms, biomarkers, and treatments.
+
+## Backend Pages
+
+<CardGroup cols={2}>
+  <Card
+    title="LightRAG"
+    icon="diagram-project"
+    href="/backends/lightrag"
+  >
+    Dual-level knowledge graph with hybrid retrieval. The richest backend — and the only one that requires Neo4j.
+  </Card>
+  <Card
+    title="MiniRAG"
+    icon="feather"
+    href="/backends/minirag"
+  >
+    Lightweight flat-graph backend with light retrieval mode, optimised for constrained environments.
+  </Card>
+  <Card
+    title="PathRAG"
+    icon="route"
+    href="/backends/pathrag"
+  >
+    Two-tier hierarchical graph with path traversal — ideal for chain-of-evidence clinical reasoning.
+  </Card>
+  <Card
+    title="HyperGraphRAG"
+    icon="share-nodes"
+    href="/backends/hypergraphrag"
+  >
+    Hyperedge-aware graph that captures many-to-many group relationships among medical concepts.
+  </Card>
+</CardGroup>

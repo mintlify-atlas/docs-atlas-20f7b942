@@ -1,0 +1,65 @@
+---
+title: "LightRAG Backend: Dual-Level Knowledge Graph Retrieval"
+sidebarTitle: "LightRAG"
+description: "LightRAG builds a dual-level knowledge graph — local entity mentions and global concept clusters — and retrieves context in hybrid mode via Neo4j and vector index."
+---
+
+LightRAG builds a dual-level knowledge graph — a local graph of fine-grained entity mentions and a global graph of high-level concept clusters — and retrieves from both simultaneously in hybrid mode. It is the most comprehensive backend in this system and the only one that requires an external Neo4j instance for graph storage.
+
+## Paper & Repository
+
+- **Paper:** [LightRAG: Simple and Fast Retrieval-Augmented Generation (arXiv 2410.05779)](https://arxiv.org/abs/2410.05779)
+- **GitHub:** [https://github.com/HKUDS/LightRAG](https://github.com/HKUDS/LightRAG)
+
+## Indexing
+
+During ingestion, LightRAG processes each document through an LLM-driven entity and relationship extraction pipeline before storing the resulting graph in Neo4j alongside dense embeddings in a vector index.
+
+<Steps>
+  <Step title="Chunking">
+    Source documents are split into overlapping chunks (400 tokens, 50-token overlap) to ensure that entity mentions near chunk boundaries are not lost.
+  </Step>
+  <Step title="Entity & relationship extraction">
+    Each chunk is passed to an LLM that identifies named entities and extracts pairwise relationships between them. This step produces the raw triples that populate the knowledge graph.
+  </Step>
+  <Step title="Graph storage (Neo4j)">
+    Extracted entities and relationships are written to **Neo4j**, forming both the local (entity-mention) and global (concept-cluster) layers of the dual-level KG.
+  </Step>
+  <Step title="Embedding & vector index">
+    Dense embeddings of entities, relationships, and raw document chunks are stored in a vector index alongside the Neo4j graph, enabling hybrid retrieval in the query phase.
+  </Step>
+  <Step title="Parallel async ingestion">
+    Parallel async inserts and async LLM calls accelerate large-scale ingestion, keeping wall-clock time manageable even for large medical corpora.
+  </Step>
+</Steps>
+
+## Retrieval (Hybrid Mode)
+
+LightRAG's hybrid retrieval combines keyword-based knowledge graph traversal with dense vector search over document chunks, surfacing both relational and semantic evidence for every query.
+
+The retrieval returns a structured **JSON** context with four sections:
+
+| Section | Content |
+|---|---|
+| `Knowledge Graph Data (Entity)` | Entities matched by KG traversal |
+| `Knowledge Graph Data (Relationship)` | Relationships between matched entities |
+| `Document Chunks` | Raw text chunks surfaced by dense vector search |
+| `Reference Document List` | Source document references for the returned chunks |
+
+The system's `context_filter` splits this JSON response across the two retrieval channels:
+
+- **Semantic channel** receives `Document Chunks` + `Reference Document List`
+- **Relational channel** receives `Knowledge Graph Data (Entity)` + `Knowledge Graph Data (Relationship)`
+
+## Storage Requirements
+
+LightRAG requires two storage backends:
+
+| Storage | Purpose |
+|---|---|
+| **Neo4j** | Stores the entity/relationship knowledge graph |
+| **Vector index** | Stores dense embeddings for semantic retrieval over document chunks |
+
+<Note>
+  LightRAG is the **only backend in this system that requires Neo4j**. MiniRAG, PathRAG, and HyperGraphRAG all store their graphs locally in the working directory and have no external graph-database dependency.
+</Note>

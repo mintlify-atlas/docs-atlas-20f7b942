@@ -1,0 +1,65 @@
+---
+title: "HyperGraphRAG Backend: Hyperedge-Aware Knowledge Graph Retrieval"
+sidebarTitle: "HyperGraphRAG"
+description: "HyperGraphRAG extends standard graph RAG with hyperedges that connect more than two entities, capturing group interactions among multiple medical concepts simultaneously."
+---
+
+HyperGraphRAG extends the standard pairwise-edge graph model with hyperedges — edges that connect more than two entities at once. This allows a single relationship to capture group interactions among multiple medical concepts simultaneously (e.g., a clinical syndrome that jointly implicates multiple symptoms, biomarkers, and treatments). Where conventional graph RAG backends model all relationships as binary connections between exactly two nodes, HyperGraphRAG can represent the true many-to-many structure that is common in medicine.
+
+## Paper & Repository
+
+- **Paper:** [HyperGraphRAG: Hypergraph-Based Retrieval-Augmented Generation (arXiv 2503.21322)](https://arxiv.org/abs/2503.21322)
+- **GitHub:** [https://github.com/LHRLAB/HyperGraphRAG](https://github.com/LHRLAB/HyperGraphRAG)
+
+## What Are Hyperedges?
+
+In a standard graph, every edge connects exactly two nodes — this is the pairwise model used by LightRAG, MiniRAG, and PathRAG. A **hyperedge** generalises this by connecting any number of nodes simultaneously.
+
+This distinction matters significantly in medicine:
+
+- A **drug interaction** may involve three or more drugs simultaneously, not just pairs.
+- A **clinical syndrome** (e.g., metabolic syndrome) jointly implicates a cluster of conditions, biomarkers, and risk factors — none of which can be fully understood in isolation.
+- A **multi-factorial disease pathway** may require connecting symptoms, genetic markers, environmental exposures, and treatments in a single relationship.
+
+By representing these group relationships as hyperedges, HyperGraphRAG avoids the information loss that occurs when many-to-many relationships are decomposed into a set of pairwise edges.
+
+## Indexing
+
+During ingestion, HyperGraphRAG extracts both standard entities and higher-order relationships from the source documents.
+
+- Named entities are identified from each document chunk, as in the other backends.
+- **Higher-order relationships (hyperedges)** connecting three or more entities are extracted and encoded as hyperedges in the graph structure.
+- The resulting hypergraph is stored in the **working directory** — no external graph database is required.
+
+## Retrieval (Hybrid Mode)
+
+HyperGraphRAG combines dense vector search with hypergraph traversal to surface both document-level and multi-entity relational context for each query.
+
+The retrieval returns a **CSV-formatted** context with three sections:
+
+| Section | Content |
+|---|---|
+| `Entities` | Entities relevant to the query |
+| `Relationships` | Pairwise and higher-order relationships (including hyperedges) |
+| `Sources` | Raw document chunks surfaced by dense vector search |
+
+The system's `context_filter` splits this CSV response across the two retrieval channels in a structure identical to MiniRAG's split:
+
+- **Semantic channel** receives the `Sources` CSV
+- **Relational channel** receives the `Entities` + `Relationships` CSVs (including any hyperedges)
+
+## When to Use HyperGraphRAG
+
+HyperGraphRAG is the right choice when:
+
+- Your clinical questions involve **syndromes or multi-factorial conditions** where a single relationship implicates several entities simultaneously — for example, diagnosing metabolic syndrome, sepsis, or autoimmune overlap syndromes.
+- You need to model **drug–drug–drug interactions** or other inherently ternary or n-ary medical relationships that cannot be faithfully represented as a set of pairwise edges.
+- You want to capture the **full combinatorial structure** of clinical evidence, where the co-occurrence of multiple findings jointly determines the diagnosis rather than any single finding in isolation.
+
+<Tip>
+  If you are unsure whether your use case benefits from hyperedges, start with MiniRAG or PathRAG and compare retrieval quality. Hyperedge extraction does add some indexing overhead, so HyperGraphRAG is most valuable when multi-entity relationships are genuinely present in your corpus.
+</Tip>
+
+<Note>
+  HyperGraphRAG does **not** require Neo4j. The hypergraph is stored locally in the working directory, keeping deployment simple and infrastructure-free.
+</Note>

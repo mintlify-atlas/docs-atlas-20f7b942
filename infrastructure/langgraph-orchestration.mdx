@@ -1,0 +1,93 @@
+---
+title: "LangGraph Orchestration: Stateful Subgraphs and Agentic Loops"
+sidebarTitle: "LangGraph"
+description: "Learn how LangGraph orchestrates the agentic pipeline with stateful subgraphs, conditional loop edges, and fan-out/fan-in patterns for parallel retrieval."
+---
+
+The agentic pipeline is implemented as a hierarchical LangGraph state machine. LangGraph provides stateful subgraphs, conditional loop edges, and fan-out/fan-in patterns that make multi-hop reasoning both reliable and observable. Rather than a simple linear chain, the pipeline fans out to two independent retrieval subgraphs — the semantic channel and the relational channel — waits for both to complete, then synthesises their outputs into a single, evidence-backed final answer.
+
+## Why LangGraph
+
+LangGraph was chosen as the orchestration framework for several properties that are particularly well-suited to iterative, multi-hop medical reasoning:
+
+- **Stateful execution** — Each subgraph maintains its own state across reasoning hops. Intermediate sub-answers, retrieved context, and drafted logic persist within the subgraph's state object and are available to every subsequent node in that subgraph without being passed explicitly between calls.
+
+- **Conditional edges** — The evidence verification node can evaluate whether the current evidence is sufficient to produce a confident sub-answer. If coverage is insufficient, a conditional edge re-routes execution back into the retrieval stage for an additional hop, enabling true iterative deepening without manual loop management.
+
+- **Fan-out / fan-in** — The parent graph dispatches both the semantic channel subgraph and the relational channel subgraph in parallel. Execution pauses at the fan-in point until both subgraphs have returned their results, at which point the synthesis node merges them into the final answer.
+
+- **Observable** — LangGraph's graph execution trace records every node entry, state transition, and edge traversal. This makes it straightforward to debug multi-hop chains, inspect intermediate sub-answers, and understand exactly which retrieval hops contributed to the final output.
+
+## Graph Structure
+
+The pipeline is organised as a three-level hierarchy: a parent graph that owns the top-level question decomposition and synthesis, and two parallel subgraphs — one for each retrieval channel.
+
+### Parent Graph
+
+The parent graph coordinates the full pipeline from user query to final answer:
+
+| Step | Node | Role |
+|---|---|---|
+| 1 | **Query intake** | Accepts the raw user question |
+| 2 | **Decomposition** | Breaks the question into semantic sub-queries (with `#N` back-references) and relational SPO triple queries (with `Entity#N` placeholders) |
+| 3 | **Fan-out** | Dispatches both the semantic channel subgraph and the relational channel subgraph in parallel |
+| 4 | **Fan-in / merge** | Waits for both subgraphs to complete and merges their accumulated sub-answers |
+| 5 | **Synthesis** | Produces the final answer by combining the merged evidence from both channels |
+
+### Semantic Channel Subgraph
+
+The semantic channel handles dense vector retrieval and iterative sub-answer refinement:
+
+| Node | Role |
+|---|---|
+| **Sub-query grounding** | Grounds each decomposed sub-query against previously retrieved context using `#N` back-references |
+| **GraphRAG retrieval** | Issues the grounded sub-query to the active GraphRAG backend (LightRAG, MiniRAG, PathRAG, or HyperGraphRAG) and receives a structured context response |
+| **Semantic filter** | Extracts the document-chunk and reference-list sections from the backend's context response |
+| **Text summary** | Summarises the filtered document chunks into a concise passage |
+| **Sub-answer** | Generates a candidate sub-answer from the summarised passage |
+| **Logic drafting** | Drafts the reasoning chain that connects the retrieved evidence to the sub-answer |
+| **Evidence verification** | Evaluates whether the current evidence is sufficient; sets a flag that determines the next edge |
+| **Conditional expansion** | If evidence is insufficient, re-enters the retrieval stage for an additional hop; otherwise exits the loop |
+
+### Relational Channel Subgraph
+
+The relational channel handles structured knowledge graph retrieval via SPO triples:
+
+| Node | Role |
+|---|---|
+| **SPO triple queries** | Issues the decomposed SPO triple queries (with `Entity#N` placeholders resolved) to the knowledge graph |
+| **KG filter** | Filters the returned triplets for relevance to the current sub-query |
+| **Triplet summaries** | Summarises the filtered triplets into a structured relational context |
+| **Sub-answer** | Generates a candidate sub-answer grounded in the triplet summaries |
+
+## Conditional Loop Edges
+
+The conditional expansion edge is the mechanism that gives the semantic channel subgraph its iterative, multi-hop character. After the evidence verification node runs, it sets a binary flag on the subgraph state:
+
+- **Sufficient evidence** → the subgraph exits its retrieval loop and returns the current sub-answer to the parent graph's fan-in node.
+- **Insufficient evidence** → the conditional edge routes execution back to the sub-query grounding node, where the next grounded sub-query (referencing results accumulated so far via `#N` back-references) is issued to the GraphRAG backend for an additional retrieval hop.
+
+This loop can repeat across multiple hops until the evidence verification node is satisfied or a configured maximum hop count is reached, enabling the system to pursue multi-step chains of clinical reasoning that a single retrieval pass would miss.
+
+## State Management
+
+LangGraph's state objects serve as the memory substrate for the pipeline. Each subgraph carries its own state that accumulates across hops:
+
+- **Accumulated sub-answers** — the candidate sub-answers produced at each hop are appended to the state, giving later nodes a full history of what has been concluded so far.
+- **Retrieved context** — the raw and filtered context returned by each retrieval hop is stored in state, making it available to the summarisation and logic-drafting nodes without redundant retrieval calls.
+- **Intermediate reasoning** — the logic drafts produced by the evidence-drafting node are preserved in state so that the synthesis node can reconstruct a coherent reasoning chain spanning all hops.
+
+The parent graph's state similarly accumulates the merged sub-answers from both channels, which the synthesis node uses to produce the final, grounded clinical answer.
+
+<Note>
+  For a full reference on LangGraph primitives — including state schemas, graph compilation, and streaming execution — see the official LangGraph documentation at [https://www.langchain.com/langgraph](https://www.langchain.com/langgraph).
+</Note>
+
+<CardGroup cols={2}>
+  <Card title="System Architecture" icon="sitemap" href="/concepts/architecture">
+    Understand the full hierarchical architecture of the agentic pipeline, including how the parent graph, semantic channel, and relational channel fit together.
+  </Card>
+  <Card title="Multi-Hop Reasoning" icon="arrow-right-arrow-left" href="/concepts/multi-hop-reasoning">
+    Learn how iterative sub-query decomposition with back-references enables the system to pursue multi-step clinical reasoning chains.
+  </Card>
+</CardGroup>

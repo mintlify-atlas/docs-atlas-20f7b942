@@ -1,0 +1,81 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "Agentic Graph RAG for Medical Diagnosis",
+  "projectDescription": "A multi-hop agentic Graph RAG system for medical question answering that combines semantic and relational retrieval channels backed by Neo4j and Milvus.",
+  "theme": "luma",
+  "primaryColor": "#912d37",
+  "lightColor": "#776f67",
+  "darkColor": "#d3cfcc",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/graph-rag",
+              "concepts/multi-hop-reasoning",
+              "concepts/retrieval-channels"
+            ]
+          },
+          {
+            "group": "Backends",
+            "pages": [
+              "backends/overview",
+              "backends/lightrag",
+              "backends/minirag",
+              "backends/pathrag",
+              "backends/hypergraphrag"
+            ]
+          },
+          {
+            "group": "Storage & Infrastructure",
+            "pages": [
+              "infrastructure/neo4j",
+              "infrastructure/milvus",
+              "infrastructure/langgraph-orchestration"
+            ]
+          },
+          {
+            "group": "Evaluation",
+            "pages": [
+              "evaluation/overview",
+              "evaluation/benchmarks",
+              "evaluation/metrics"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Agentic multi-hop reasoning with iterative sub-query decomposition and back-references across hops",
+    "Dual retrieval channels: parallel semantic (text) and relational (knowledge graph triple) pipelines",
+    "Four switchable Graph RAG backends: LightRAG, MiniRAG, PathRAG, HyperGraphRAG",
+    "Neo4j for entity/relationship knowledge graph storage",
+    "Milvus for dense hybrid vector search over medical documents",
+    "LangGraph orchestration with stateful subgraphs, conditional loop edges, and fan-out/fan-in",
+    "Evaluation via DeepEval against HealthBench, MedCaseReasoning, MetaMedQA, and PubMedQA benchmarks"
+  ],
+  "publicApiSurface": [
+    "LightRAG backend — hybrid dual-level KG retrieval via Neo4j + vector index",
+    "MiniRAG backend — lightweight graph retrieval in 'light' mode",
+    "PathRAG backend — hierarchical two-tier path traversal in hybrid mode",
+    "HyperGraphRAG backend — hyperedge-aware retrieval combining vector search with hypergraph traversal",
+    "context_filter — splits raw backend context into semantic and relational channel inputs",
+    "LangGraph parent graph — fans out to semantic and relational subgraphs, then synthesizes final answer",
+    "Semantic channel subgraph — sub-query grounding → retrieval → filter → summary → logic drafting → evidence verification",
+    "Relational channel subgraph — SPO triple queries → KG filter → triplet summaries → sub-answer",
+    "DeepEval evaluation harness — Contextual Recall, Contextual Precision, Contextual Relevancy, Answer Relevancy, Faithfulness"
+  ]
+}

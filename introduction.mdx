@@ -1,0 +1,75 @@
+---
+title: "Agentic Graph RAG for Medical Diagnosis"
+sidebarTitle: "Introduction"
+description: "Learn how Agentic Graph RAG combines semantic and relational retrieval channels to answer complex clinical questions through multi-hop reasoning."
+---
+
+Agentic Graph RAG for Medical Diagnosis is a multi-hop, agentic Retrieval-Augmented Generation system built specifically for clinical question answering. Unlike single-pass retrieval systems that fetch a fixed context window and generate an answer in one shot, this system iteratively decomposes complex clinical questions into sub-queries, retrieves evidence from both a semantic channel and a relational knowledge-graph channel, and synthesizes a final answer only after multiple reasoning hops. It was built because real-world clinical questions — spanning symptoms, biomarkers, treatments, and multi-step differential diagnoses — cannot be reliably answered by simple RAG; they demand traversal across a structured medical knowledge graph.
+
+<CardGroup cols={2}>
+  <Card title="Agentic Multi-Hop Reasoning" icon="brain">
+    Iterative sub-query decomposition with back-references across hops — the system keeps reasoning until it has gathered sufficient evidence, not just until it hits a context limit.
+  </Card>
+  <Card title="Dual Retrieval Channels" icon="arrows-split-up-and-left">
+    Parallel semantic (text) and relational (knowledge-graph triple) channels run simultaneously inside a LangGraph state machine, then their outputs are fused into a single answer.
+  </Card>
+  <Card title="Four Swappable Backends" icon="layer-group">
+    LightRAG, MiniRAG, PathRAG, and HyperGraphRAG are all supported and switchable at runtime, letting you trade off between retrieval depth, efficiency, and graph expressiveness.
+  </Card>
+  <Card title="LangGraph Orchestration" icon="diagram-project">
+    The entire pipeline is a hierarchical LangGraph state machine with stateful subgraphs, conditional loop edges, and fan-out/fan-in — giving you full observability and control over every reasoning step.
+  </Card>
+</CardGroup>
+
+## The Problem: Simple RAG Fails on Complex Clinical Questions
+
+Standard RAG retrieves a handful of the most semantically similar document chunks and hands them to a language model. This works for simple factual lookups, but clinical reasoning routinely requires connecting information scattered across multiple documents and relationships. A question like *"Which treatment is contraindicated for a patient presenting with symptom X, comorbidity Y, and biomarker Z?"* requires the system to:
+
+1. Identify the relevant entities (symptom, comorbidity, biomarker, drug classes).
+2. Traverse the knowledge graph to find pairwise and higher-order relationships among them.
+3. Reconcile evidence from both structured graph triples and unstructured text passages.
+4. Iterate if the first retrieval pass is insufficient.
+
+Single-pass retrieval collapses all of this into one step, producing answers that miss critical relational context. This system solves that by running two parallel iterative retrieval-and-reasoning loops — a semantic channel and a relational channel — orchestrated by a parent LangGraph graph that fans out, waits for both channels to converge, and then synthesizes their outputs.
+
+## Graph RAG Backends
+
+Each backend builds and queries a knowledge graph differently. All four are supported and can be swapped at runtime.
+
+| Backend | Summary |
+|---|---|
+| **LightRAG** | Builds a dual-level knowledge graph (local entity mentions + global concept clusters) and retrieves context in hybrid mode via keyword-based KG traversal and dense vector search simultaneously. |
+| **MiniRAG** | A lightweight Graph RAG designed for resource-constrained settings; uses a simpler flat graph construction and a `"light"` retrieval mode that prioritises efficiency over exhaustive traversal. |
+| **PathRAG** | Organises the knowledge graph into a two-tier hierarchy (global abstract entities and local fine-grained mentions) and retrieves reasoning *paths* between entities rather than isolated nodes or edges. |
+| **HyperGraphRAG** | Extends the standard pairwise-edge graph model with hyperedges — edges connecting more than two entities at once — enabling a single relationship to capture group interactions among multiple medical concepts simultaneously. |
+
+## Storage Layer
+
+The system relies on two complementary storage backends that serve the two retrieval channels:
+
+- **Neo4j** — stores the entity/relationship knowledge graph built from ingested medical documents. The relational channel queries Neo4j to retrieve structured KG triples and multi-hop paths.
+- **Milvus** — stores dense vector embeddings for semantic retrieval over document chunks. The semantic channel performs hybrid search over Milvus to ground sub-queries in text evidence.
+
+## Evaluation
+
+All four agentic pipelines are evaluated against their corresponding baseline (non-agentic) backends using [DeepEval](https://deepeval.com/) metrics.
+
+**Metrics:** Contextual Recall, Contextual Precision, Contextual Relevancy, Answer Relevancy, Faithfulness
+
+**Medical Benchmarks:**
+
+| Dataset | Description |
+|---|---|
+| [HealthBench](https://openai.com/index/healthbench/) | Multi-turn medical AI benchmark with expert rubric evaluations |
+| [MedCaseReasoning](https://github.com/kevinwu23/Stanford-MedCaseReasoning) | Medical case studies with detailed reasoning processes |
+| [MetaMedQA](https://github.com/maximegmd/MetaMedQA-benchmark) | Medical QA based on USMLE textbook content |
+| [PubMedQA](https://pubmedqa.github.io/) | Biomedical QA based on PubMed articles |
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install dependencies, start Neo4j and Milvus, and run your first multi-hop medical query in under ten minutes.
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/concepts/architecture">
+    Dive deep into the LangGraph state machine, the dual retrieval channels, and how each backend plugs into the pipeline.
+  </Card>
+</CardGroup>

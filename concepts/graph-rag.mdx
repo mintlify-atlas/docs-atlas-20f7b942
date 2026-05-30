@@ -1,0 +1,54 @@
+---
+title: "What Is Graph RAG? Knowledge Graphs Meet Language Models"
+sidebarTitle: "Graph RAG"
+description: "Learn how Graph Retrieval-Augmented Generation combines knowledge graph traversal with dense vector search to ground LLM answers in relational evidence."
+---
+
+Graph Retrieval-Augmented Generation (Graph RAG) is a paradigm for grounding language model outputs in structured evidence, where the retrieval source is a **knowledge graph** rather than a flat corpus of documents. Instead of fetching the most semantically similar text chunks and feeding them verbatim to the model, Graph RAG traverses a graph of entities and relationships, surfaces explicit reasoning paths, and combines that structured evidence with dense vector search over document text. The result is a retrieval system that can answer questions requiring not just relevant passages but also the relational connections that link medical concepts together.
+
+## Why Graph RAG for Medicine
+
+Medical knowledge is inherently relational. A clinical question rarely has a self-contained answer within a single paragraph — it requires chaining together facts about symptoms, diagnoses, mechanisms of action, contraindications, dosages, and comorbidities. A flat document retrieval system can surface relevant text, but it cannot explicitly represent the fact that a particular treatment is contraindicated for patients with a specific comorbidity, or that a biomarker is jointly associated with multiple syndromes.
+
+Graph RAG addresses this by encoding those relationships as first-class edges in a knowledge graph. When the system retrieves context for a clinical question, it can traverse the graph from a symptom node through a diagnosis edge to a treatment node and on to a contraindication edge — surfacing a multi-hop chain of evidence that no single document passage would provide in isolation. This makes Graph RAG particularly well-suited to complex, multi-step clinical reasoning.
+
+## Knowledge Graph Components
+
+A knowledge graph is built from three fundamental primitives:
+
+- **Entities** — Named nodes representing real-world medical concepts: diseases, symptoms, drugs, biomarkers, anatomical structures, clinical procedures, and so on. Each entity is a discrete node in the graph.
+- **Relationships** — Directed edges connecting two entities and labelled with the nature of the connection (e.g., `causes`, `treats`, `contraindicates`, `is_a`, `associated_with`). Relationships give the graph its semantic structure.
+- **Triples (Subject–Predicate–Object)** — The atomic unit of knowledge graph data, written as `(Subject, Predicate, Object)`. For example: `(Metformin, contraindicates, Renal Failure)` or `(Chest Pain, symptom_of, Myocardial Infarction)`. Every edge in the graph corresponds to one or more SPO triples.
+
+In this system, entities and relationships extracted from medical documents are stored in **Neo4j**, while dense vector embeddings of document chunks are stored in **Milvus** for semantic retrieval.
+
+## Retrieval Modes
+
+This system uses two complementary retrieval modes in parallel, rather than choosing one:
+
+- **Semantic (dense vector) retrieval** — Document chunks are embedded into a high-dimensional vector space and stored in Milvus. At query time, the sub-query is embedded and a nearest-neighbour search returns the most semantically similar passages. This mode is good at surfacing relevant text even when the exact terminology differs from the query.
+- **Relational (graph traversal) retrieval** — SPO triple queries are issued to the Neo4j knowledge graph. The graph is traversed from query-relevant entity nodes along typed edges, returning chains of triples that represent explicit, structured relationships. This mode surfaces connections that may not be stated verbatim in any single document.
+
+Running both modes in parallel and synthesizing their outputs allows the system to answer questions that require both broad semantic coverage and precise relational grounding.
+
+## Backends in This System
+
+Four Graph RAG backends are supported, each with a different graph model and retrieval strategy. All four are switchable at runtime.
+
+| Backend | Graph Model | Retrieval Mode |
+|---|---|---|
+| [LightRAG](https://arxiv.org/abs/2410.05779) | Dual-level knowledge graph (local fine-grained entity graph + global concept cluster graph) | Hybrid (keyword KG traversal + dense vector search) |
+| [MiniRAG](https://arxiv.org/abs/2501.06713) | Flat graph (lightweight, resource-efficient construction) | Light (immediate neighbourhood of query entity) |
+| [PathRAG](https://arxiv.org/abs/2502.14902) | Two-tier hierarchy (high-level thematic layer + low-level mention layer) | Hybrid (path traversal between query-relevant entities) |
+| [HyperGraphRAG](https://arxiv.org/abs/2503.21322) | Hyperedge graph (edges connecting more than two entities simultaneously) | Hybrid (dense vector search + hypergraph traversal) |
+
+Each backend surfaces its context in a different format (JSON or CSV), and the `context_filter` function routes each section to the appropriate retrieval channel. See the [Retrieval Channels](/concepts/retrieval-channels) page for details on how each backend's output is split.
+
+<CardGroup cols={2}>
+  <Card title="Multi-Hop Reasoning" icon="link-horizontal" href="/concepts/multi-hop-reasoning">
+    Learn how the agentic pipeline decomposes clinical questions into chained sub-queries across multiple retrieval hops.
+  </Card>
+  <Card title="Retrieval Channels" icon="arrows-split-up-and-left" href="/concepts/retrieval-channels">
+    Understand how the semantic and relational pipelines run in parallel and how their outputs are merged into a final answer.
+  </Card>
+</CardGroup>

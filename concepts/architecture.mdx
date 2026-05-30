@@ -1,0 +1,88 @@
+---
+title: "System Architecture: LangGraph State Machine for Medical RAG"
+sidebarTitle: "Architecture"
+description: "Understand how the hierarchical LangGraph state machine fans out to semantic and relational subgraphs and synthesizes multi-hop medical answers."
+---
+
+The system is implemented as a hierarchical **LangGraph** state machine that orchestrates the full agentic multi-hop retrieval pipeline. A parent graph fans out to two parallel subgraphs — the **semantic channel** and the **relational channel** — each of which runs its own iterative retrieval-and-reasoning loop. Once both subgraphs complete, the parent graph collects their outputs and synthesizes a single, grounded final answer. This architecture keeps the semantic and relational reasoning paths cleanly separated while allowing them to execute concurrently, minimizing latency on complex clinical queries.
+
+## Parent Graph
+
+The parent graph implements a classic **fan-out / fan-in** pattern over the two retrieval channels.
+
+1. **Fan-out** — The parent graph receives the incoming clinical question, retrieves initial context from the chosen Graph RAG backend, and runs `context_filter` to partition that raw context into channel-specific inputs. It then dispatches the decomposed sub-queries to the semantic channel subgraph and the SPO triple queries to the relational channel subgraph, triggering both in parallel.
+2. **Wait** — The parent graph waits for both subgraphs to reach their terminal states before proceeding.
+3. **Fan-in / Merge** — Once both channels have produced sub-answers, the parent graph merges them and passes the combined evidence to the synthesis step, which generates the final answer.
+
+This design means neither channel blocks the other, and the synthesis step always has access to the full set of retrieved evidence before producing a response.
+
+## Semantic Channel Subgraph
+
+The semantic channel retrieves and reasons over text-based evidence — document chunks and reference lists surfaced by the Graph RAG backend's dense vector search. Its pipeline consists of the following stages, executed in order:
+
+<Steps>
+  <Step title="Sub-Query Grounding">
+    The original clinical question is decomposed into a sequence of focused semantic sub-queries. Each sub-query may include `#N` back-references that anchor it to answers produced by earlier hops, enabling iterative, dependent retrieval.
+  </Step>
+  <Step title="GraphRAG Retrieval">
+    Each grounded sub-query is issued to the Graph RAG backend (LightRAG, MiniRAG, PathRAG, or HyperGraphRAG). The backend performs dense vector search over Milvus embeddings and returns the relevant document chunks along with any associated reference document list.
+  </Step>
+  <Step title="Semantic Filter">
+    The raw retrieved text is filtered to remove noise and retain only the passages most relevant to the current sub-query, reducing the context window burden for downstream steps.
+  </Step>
+  <Step title="Text Summary">
+    The filtered passages are summarised into a compact textual representation that distills the key clinical evidence needed to answer the sub-query.
+  </Step>
+  <Step title="Sub-Answer Generation">
+    The language model generates a sub-answer for the current hop, drawing on the summarised text evidence. This sub-answer becomes available as a `#N` back-reference for subsequent sub-queries.
+  </Step>
+  <Step title="Logic Drafting">
+    The reasoning chain connecting the retrieved evidence to the sub-answer is made explicit, producing a structured draft of the logical steps taken. This transparency supports downstream verification.
+  </Step>
+  <Step title="Evidence Verification">
+    The drafted logic and sub-answer are checked against the retrieved evidence for faithfulness and sufficiency. If the evidence is deemed insufficient, this step emits a signal that triggers the conditional expansion edge.
+  </Step>
+  <Step title="Conditional Expansion">
+    A conditional edge in the LangGraph subgraph evaluates the verification signal. If coverage is insufficient, the subgraph loops back to issue additional retrieval hops; otherwise, it proceeds to output the final sub-answer for this channel.
+  </Step>
+</Steps>
+
+## Relational Channel Subgraph
+
+The relational channel retrieves and reasons over structured entity/relationship triples from the Neo4j knowledge graph. Its pipeline is more direct than the semantic channel, focusing on graph traversal rather than text summarisation:
+
+<Steps>
+  <Step title="SPO Triple Queries">
+    The clinical question is decomposed into Subject–Predicate–Object triple queries, with `Entity#N` placeholders that can reference entities resolved in earlier hops. These structured queries are issued to the Neo4j knowledge graph.
+  </Step>
+  <Step title="KG Filter">
+    The triples returned by Neo4j are filtered to retain only those most relevant to the current sub-query, removing spurious or low-confidence relationships.
+  </Step>
+  <Step title="Triplet List Summaries">
+    The filtered triples are summarised into a structured list that captures the key entities and relationships needed to answer the sub-query, making the relational evidence consumable by the language model.
+  </Step>
+  <Step title="Sub-Answer Generation">
+    The language model generates a sub-answer for this channel using the summarised triplet evidence, producing the relational channel's contribution to the final synthesis step.
+  </Step>
+</Steps>
+
+## Synthesis
+
+After both the semantic channel and the relational channel have produced their sub-answers, the parent graph **merges** the two outputs. The synthesis step receives the full set of text-based evidence (from the semantic channel) and the full set of graph-triple evidence (from the relational channel) and passes both to the language model, which generates a single coherent final answer. By grounding the answer in both retrieval modalities simultaneously, the synthesis step can resolve ambiguities that either channel alone might miss — for example, confirming a textually implied drug interaction with an explicit SPO triple, or contextualising a graph relationship with a passage that explains its clinical significance.
+
+## context_filter
+
+Before either subgraph begins its pipeline, the parent graph calls the `context_filter` function on the raw context returned by the Graph RAG backend. Because each backend structures its output differently, `context_filter` knows how to parse each format and route each section to the correct channel:
+
+| Backend | Semantic Channel Input | Relational Channel Input |
+|---|---|---|
+| **LightRAG** | `Document Chunks` + `Reference Document List` | `Knowledge Graph Data (Entity)` JSON + `Knowledge Graph Data (Relationship)` JSON |
+| **MiniRAG** | `Sources` CSV | `Entities` CSV + `Relationships` CSV |
+| **HyperGraphRAG** | `Sources` CSV | `Entities` CSV + `Relationships` CSV (including hyperedges) |
+| **PathRAG** | `Sources` CSV | High-level entity/relationship CSVs + low-level entity/relationship CSVs |
+
+This clean separation ensures that each channel always receives exactly the evidence modality it is designed to process, regardless of which backend is active at runtime.
+
+<Note>
+  This system uses [LangGraph](https://www.langchain.com/langgraph) for stateful subgraph orchestration, including conditional loop edges and fan-out/fan-in coordination between the semantic and relational channels.
+</Note>

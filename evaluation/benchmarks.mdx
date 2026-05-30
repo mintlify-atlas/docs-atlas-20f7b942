@@ -1,0 +1,44 @@
+---
+title: "Medical Evaluation Benchmarks: HealthBench, MedCaseReasoning, and More"
+sidebarTitle: "Benchmarks"
+description: "Detailed overview of the four medical QA benchmarks used to evaluate the agentic Graph RAG pipeline: HealthBench, MedCaseReasoning, MetaMedQA, and PubMedQA."
+---
+
+The agentic Graph RAG system is evaluated on four medical QA benchmarks that collectively cover a broad range of clinical question types — from multi-turn medical AI interactions to textbook-style USMLE questions and biomedical research QA. Together they stress-test the pipeline across conversational, reasoning-intensive, standardised, and literature-grounded scenarios, giving a comprehensive picture of real-world clinical performance.
+
+## HealthBench
+
+[HealthBench](https://openai.com/index/healthbench/) is a multi-turn medical AI benchmark with expert rubric evaluations. Rather than simple single-turn question–answer pairs, it presents realistic conversational exchanges with a medical AI, and scores responses against rubrics written by medical experts.
+
+**Why it's relevant:** The agentic pipeline's iterative sub-query decomposition and evidence-verification loop are designed specifically for complex, multi-hop questions. HealthBench stress-tests whether those capabilities translate to multi-turn, conversational clinical questions evaluated by expert-defined rubrics — a setting that closely mirrors real clinical decision-support use cases.
+
+## MedCaseReasoning
+
+[MedCaseReasoning](https://github.com/kevinwu23/Stanford-MedCaseReasoning) consists of medical case studies paired with detailed reasoning processes. Each example requires not just a correct final answer, but the ability to follow and reproduce the stepwise clinical reasoning a physician would use when working through a case.
+
+**Why it's relevant:** The agentic pipeline decomposes questions into sub-queries and tracks back-references across hops, mirroring the kind of chained reasoning that clinical case studies demand. MedCaseReasoning directly tests whether this multi-hop structure leads to better-aligned reasoning chains, rather than just improved final answers.
+
+## MetaMedQA
+
+[MetaMedQA](https://github.com/maximegmd/MetaMedQA-benchmark) is a medical QA benchmark based on USMLE textbook content. It presents standardised multiple-choice questions drawn from the same material physicians use when preparing for licensing examinations.
+
+**Why it's relevant:** USMLE-style questions require precise, factually grounded answers with no room for vague or hallucinated content. MetaMedQA provides a controlled, standardised setting in which the Faithfulness and Contextual Precision metrics are particularly meaningful — any unsupported claim or irrelevant retrieval is immediately penalised.
+
+## PubMedQA
+
+[PubMedQA](https://pubmedqa.github.io/) is a biomedical QA benchmark built on top of PubMed articles. Questions are grounded in peer-reviewed biomedical literature, and answers must be supported by the corresponding research context.
+
+**Why it's relevant:** The Graph RAG backends index knowledge graphs built from medical documents, and PubMedQA specifically tests retrieval over biomedical literature. This makes it a natural complement to the knowledge-graph-based retrieval channels — the Contextual Recall metric, in particular, measures how much of the relevant PubMed evidence the system actually surfaces.
+
+## Benchmark Summary
+
+| Benchmark | Type | Source | Focus Area |
+|---|---|---|---|
+| [HealthBench](https://openai.com/index/healthbench/) | Multi-turn dialogue | Expert-written rubrics | Conversational clinical AI evaluation |
+| [MedCaseReasoning](https://github.com/kevinwu23/Stanford-MedCaseReasoning) | Case study reasoning | Stanford clinical cases | Stepwise clinical reasoning chains |
+| [MetaMedQA](https://github.com/maximegmd/MetaMedQA-benchmark) | Multiple choice | USMLE textbook content | Standardised factual medical QA |
+| [PubMedQA](https://pubmedqa.github.io/) | Biomedical QA | PubMed research articles | Literature-grounded retrieval |
+
+<Note>
+  Evaluation results will be published alongside the code release. No benchmark scores are available yet.
+</Note>
